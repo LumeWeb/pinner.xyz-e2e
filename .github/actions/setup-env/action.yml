@@ -1,0 +1,27 @@
+name: 'Setup Environment'
+description: 'Generate environment variables from YAML configurations'
+
+inputs:
+  db_type:
+    description: 'Database type (sqlite or mysql)'
+    required: false
+    default: 'mysql'
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout Workflows for Config
+      uses: actions/checkout@v4
+      with:
+        repository: LumeWeb/workflows
+        path: workflows-config
+        sparse-checkout: |
+          .github/config
+          scripts
+
+    - name: Generate Environment Variables
+      shell: bash
+      run: |
+        chmod +x ./scripts/setup-env.sh
+        ./scripts/setup-env.sh "${{ inputs.db_type }}" true

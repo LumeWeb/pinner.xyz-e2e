@@ -1,0 +1,80 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  build:
+    name: Build Portal
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    
+    - name: Create Plugin Manifest
+      run: |
+        # Initialize manifest with portal version
+        yq -n '.portalVersion = "develop"' > portal-plugins.yaml
+        
+        # Add plugins
+        yq -i '.plugins[0].module = "go.lumeweb.com/portal-plugin-ipfs" | .plugins[0].version = "develop"' portal-plugins.yaml
+        yq -i '.plugins[1].module = "go.lumeweb.com/portal-plugin-dashboard" | .plugins[1].version = "develop"' portal-plugins.yaml
+        yq -i '.plugins[2].module = "go.lumeweb.com/portal-plugin-core" | .plugins[2].version = "develop"' portal-plugins.yaml
+        
+        echo "Created portal-plugins.yaml:"
+        cat portal-plugins.yaml
+    
+    - name: Build Portal
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ghcr.io/lumeweb/portal-builder:ubuntu
+        options: -v ${{ github.workspace }}:/workspace -v ${{ github.workspace }}/dist:/dist
+        run: build-portal
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: portal-build
+        path: dist/portal
+        retention-days: 1
+
+  run:
+    name: Run Portal (MySQL)
+    needs: build
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: percona/percona-server:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: portal
+          MYSQL_USER: portal
+          MYSQL_PASSWORD: portal
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+    - name: Setup Environment
+      uses: ./.github/actions/setup-env
+      env:
+        RENTERD_URL: ${{ secrets.RENTERD_URL }}
+        RENTERD_API_PASSWORD: ${{ secrets.RENTERD_API_PASSWORD }}
+        RENTERD_SEED: ${{ secrets.RENTERD_SEED }}
+    
+    - name: Run Portal
+      uses: ./.github/actions/run-portal
