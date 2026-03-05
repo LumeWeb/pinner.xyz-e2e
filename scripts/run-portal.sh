@@ -15,6 +15,13 @@ if [ "$WORKFLOW_MODE" = "true" ]; then
   # This is handled by the GitHub Actions workflow
 fi
 
+# Check if portal binary exists
+if [ ! -f "./portal" ]; then
+  echo "✗ Portal binary not found at ./portal"
+  echo "Please build the portal first using 'make build-portal'"
+  exit 1
+fi
+
 # Make portal executable
 chmod +x ./portal
 

@@ -7,7 +7,7 @@
 
 # Build artifacts
 dist/
-portal
+/portal
 
 # Python
 __pycache__/

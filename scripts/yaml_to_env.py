@@ -35,6 +35,11 @@ def yaml_to_env(yaml_file, output_file=None):
     if not config:
         return
     
+    # Validate that config is a dictionary
+    if not isinstance(config, dict):
+        print(f"Error: YAML root must be a dictionary, got {type(config).__name__}", file=sys.stderr)
+        sys.exit(1)
+    
     # Flatten nested structure
     flat_config = flatten_dict(config)
     

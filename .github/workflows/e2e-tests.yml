@@ -69,6 +69,17 @@ jobs:
           --health-retries=3
     
     steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: portal-build
+        path: dist/
+    
     - name: Setup Environment
       uses: ./.github/actions/setup-env
       env:

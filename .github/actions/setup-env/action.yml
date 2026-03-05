@@ -23,5 +23,5 @@ runs:
     - name: Generate Environment Variables
       shell: bash
       run: |
-        chmod +x ./scripts/setup-env.sh
-        ./scripts/setup-env.sh "${{ inputs.db_type }}" true
+        chmod +x ./workflows-config/scripts/setup-env.sh
+        ./workflows-config/scripts/setup-env.sh "${{ inputs.db_type }}" true

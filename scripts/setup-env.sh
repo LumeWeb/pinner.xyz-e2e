@@ -98,7 +98,9 @@ for env_var in "${!RENTERD_VARS[@]}"; do
   esac
   
   if [ -n "$value" ]; then
-    echo "export ${portal_var}=\"${value}\"" >> .env
+    # Escape special characters in value to prevent command injection
+    escaped_value=$(printf '%s' "$value" | sed 's/["\\]/\\&/g')
+    echo "export ${portal_var}=\"${escaped_value}\"" >> .env
   else
     echo "# ${env_var} not set, using empty value" >&2
   fi
@@ -112,8 +114,12 @@ set +a
 
 # GitHub Actions mode: export to GITHUB_ENV
 if [ "$WORKFLOW_MODE" = "true" ]; then
-  echo "PORTAL_PORT=${PORTAL_PORT:-8080}" >> "$GITHUB_ENV"
-  echo "PORTAL_HOST=${PORTAL_HOST:-localhost}" >> "$GITHUB_ENV"
+  if [ -n "${GITHUB_ENV:-}" ]; then
+    echo "PORTAL_PORT=${PORTAL_PORT:-8080}" >> "$GITHUB_ENV"
+    echo "PORTAL_HOST=${PORTAL_HOST:-localhost}" >> "$GITHUB_ENV"
+  else
+    echo "Warning: GITHUB_ENV not set, skipping export to GitHub Actions environment" >&2
+  fi
 fi
 
 echo "Environment configured (DB: ${DB_TYPE}):"
