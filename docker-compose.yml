@@ -1,0 +1,67 @@
+services:
+  mysql:
+    image: percona/percona-server:8.4
+    container_name: portal-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: portal
+      MYSQL_USER: portal
+      MYSQL_PASSWORD: portal
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - e2e-network
+
+  maildev:
+    image: maildev/maildev:latest
+    container_name: portal-maildev
+    ports:
+      - "1025:1025"
+      - "1080:1080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:1080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - e2e-network
+
+  gofakes3:
+    image: johannesboyne/gofakes3:latest
+    container_name: portal-gofakes3
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9000"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - e2e-network
+
+  # This container waits for all services to be healthy
+  services-ready:
+    image: alpine:latest
+    container_name: services-ready
+    depends_on:
+      mysql:
+        condition: service_healthy
+      maildev:
+        condition: service_healthy
+      gofakes3:
+        condition: service_healthy
+    command: ["sh", "-c", "exit 0"]
+    networks:
+      - e2e-network
+
+networks:
+  e2e-network:
+    driver: bridge
