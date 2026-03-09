@@ -8,12 +8,16 @@ import sys
 import yaml
 
 
-def flatten_dict(d, parent_key='', sep='__'):
+def flatten_dict(d, parent_key='', sep='__', top_level=True):
     """Flatten nested dictionary into single-level dict with joined keys."""
     items = []
     for k, v in d.items():
-        # Split key by dots to handle nested keys like "core.storage.sia"
-        key_parts = k.split('.')
+        # Split key by dots to handle flattened YAML keys like "core.db"
+        # Only split at the top level, not recursively in nested structures
+        if top_level:
+            key_parts = k.split('.')
+        else:
+            key_parts = [k]
         # Convert each part to uppercase
         key_parts = [part.upper() for part in key_parts]
         # Join with double underscores
@@ -21,7 +25,7 @@ def flatten_dict(d, parent_key='', sep='__'):
         
         new_key = f"{parent_key}{sep}{clean_key}" if parent_key else clean_key
         if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
+            items.extend(flatten_dict(v, new_key, sep=sep, top_level=False).items())
         else:
             items.append((new_key, v))
     return dict(items)
@@ -34,11 +38,6 @@ def yaml_to_env(yaml_file, output_file=None):
     
     if not config:
         return
-    
-    # Validate that config is a dictionary
-    if not isinstance(config, dict):
-        print(f"Error: YAML root must be a dictionary, got {type(config).__name__}", file=sys.stderr)
-        sys.exit(1)
     
     # Flatten nested structure
     flat_config = flatten_dict(config)

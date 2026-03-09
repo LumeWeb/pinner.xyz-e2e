@@ -8,25 +8,13 @@ set -euo pipefail
 # Environment variables expected:
 #   RENTERD_URL - URL to renterd instance (e.g., http://localhost:8081)
 #   RENTERD_API_PASSWORD - API password for renterd
-#   RENTERD_SEED - Seed phrase for renterd
 
 DB_TYPE="${1:-mysql}"
 WORKFLOW_MODE="${2:-false}"
 
-# Config file locations
-WORKFLOWS_CORE_CONFIG=""
-YAML_TO_ENV_SCRIPT=""
-
-if [ "$WORKFLOW_MODE" = "true" ]; then
-  # GitHub Actions mode: checkout workflows repo for configs
-  WORKFLOWS_CORE_CONFIG="workflows-config/.github/config/portal-core.yml"
-  YAML_TO_ENV_SCRIPT="workflows-config/scripts/yaml_to_env.py"
-else
-  # Local mode: use local configs
-  WORKFLOWS_CORE_CONFIG=".github/config/portal-core.yml"
-  YAML_TO_ENV_SCRIPT="scripts/yaml_to_env.py"
-fi
-
+# Config file locations (same for both local and GitHub Actions)
+WORKFLOWS_CORE_CONFIG=".github/config/portal-core.yml"
+YAML_TO_ENV_SCRIPT="scripts/yaml_to_env.py"
 # Preserve RENTERD_* variables from existing .env file
 if [ -f .env ]; then
   # shellcheck disable=SC1091
@@ -34,47 +22,40 @@ if [ -f .env ]; then
   # Save renterd values
   PRESERVED_RENTERD_URL="${RENTERD_URL:-}"
   PRESERVED_RENTERD_API_PASSWORD="${RENTERD_API_PASSWORD:-}"
-  PRESERVED_RENTERD_SEED="${RENTERD_SEED:-}"
 else
   PRESERVED_RENTERD_URL=""
   PRESERVED_RENTERD_API_PASSWORD=""
-  PRESERVED_RENTERD_SEED=""
 fi
 
 # Clear existing .env file
 : > .env
 
-# Create database config based on type
-if [ "$DB_TYPE" = "mysql" ]; then
-  yq -n '
-    .core.db.type = "mysql" |
-    .core.db.host = "127.0.0.1" |
-    .core.db.port = 3306 |
-    .core.db.username = "portal" |
-    .core.db.password = "portal" |
-    .core.db.name = "portal" |
-    .core.db.charset = "utf8mb4"
-  ' > portal-mysql.yml
+# Merge configs using yq (later configs override earlier ones)
+if [ "$DB_TYPE" = "mysql" ] && [ -f "config/portal-mysql.yml" ]; then
+  # Merge portal-core.yml (base) and portal-mysql.yml (overrides)
+  # Load base config first, then apply mysql config on top
+  yq eval 'load("'$WORKFLOWS_CORE_CONFIG'") * .' config/portal-mysql.yml > portal-mysql.yml
 fi
 
 # Merge configs and convert to env vars
-CONFIG_FILES=("$WORKFLOWS_CORE_CONFIG")
+CONFIG_FILES=()
 
 if [ "$DB_TYPE" = "mysql" ] && [ -f "portal-mysql.yml" ]; then
   CONFIG_FILES+=("portal-mysql.yml")
 fi
 
 # Convert YAML to env vars using Python script
+# Use a temporary file to collect all vars, then dedupe with last-wins
+TEMP_ENV=$(mktemp)
 for config_file in "${CONFIG_FILES[@]}"; do
-  python3 "$YAML_TO_ENV_SCRIPT" "$config_file" .env
+  python3 "$YAML_TO_ENV_SCRIPT" "$config_file" "$TEMP_ENV"
 done
 
 # Dynamic renterd env var overrides
 # Format: ENV_VAR_NAME -> PORTAL_CONFIG_PATH
 declare -A RENTERD_VARS=(
   ["RENTERD_URL"]="PORTAL__CORE__STORAGE__SIA__URL"
-  ["RENTERD_API_PASSWORD"]="PORTAL__CORE__STORAGE__SIA__API_PASSWORD"
-  ["RENTERD_SEED"]="PORTAL__CORE__STORAGE__SIA__SEED"
+  ["RENTERD_API_PASSWORD"]="PORTAL__CORE__STORAGE__SIA__KEY"
 )
 
 # Loop through and set each env var
@@ -89,9 +70,6 @@ for env_var in "${!RENTERD_VARS[@]}"; do
     RENTERD_API_PASSWORD)
       value="${PRESERVED_RENTERD_API_PASSWORD:-}"
       ;;
-    RENTERD_SEED)
-      value="${PRESERVED_RENTERD_SEED:-}"
-      ;;
     *)
       value=""
       ;;
@@ -100,17 +78,19 @@ for env_var in "${!RENTERD_VARS[@]}"; do
   if [ -n "$value" ]; then
     # Escape special characters in value to prevent command injection
     escaped_value=$(printf '%s' "$value" | sed 's/["\\]/\\&/g')
-    echo "export ${portal_var}=\"${escaped_value}\"" >> .env
+    echo "export ${portal_var}=\"${escaped_value}\"" >> "$TEMP_ENV"
   else
     echo "# ${env_var} not set, using empty value" >&2
   fi
 done
 
-# Source the env file to verify
-set -a
+# Dedupe with last-wins (keep last occurrence of each var)
+tac "$TEMP_ENV" | awk -F= '!seen[$1]++' | tac > .env
+rm -f "$TEMP_ENV"
+
+# Source the env file to verify using shared loader
 # shellcheck disable=SC1091
-. .env
-set +a
+QUIET=1 . scripts/load-env.sh
 
 # GitHub Actions mode: export to GITHUB_ENV
 if [ "$WORKFLOW_MODE" = "true" ]; then
