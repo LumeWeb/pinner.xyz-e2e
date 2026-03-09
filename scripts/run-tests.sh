@@ -41,23 +41,13 @@ fi
 # Run godog tests
 log_info "Running E2E tests..."
 
-# Build godog command
-GODOG_CMD="godog"
-FLAGS="--godog.strict=false"
-
-# Add additional flags passed as arguments
-for arg in "$@"; do
-    FLAGS="$FLAGS $arg"
-done
-
 # Check if godog is installed
 if ! command -v godog &> /dev/null; then
     log_error "godog is not installed. Install it with: go install github.com/cucumber/godog/cmd/godog@latest"
     exit 1
 fi
 
-# Run tests
-# shellcheck disable=SC2086
-eval "$GODOG_CMD $FLAGS || true"
+# Run tests with default godog.strict=false and pass-through any additional arguments
+godog --godog.strict=false "$@"
 
 log_info "Test execution completed"
