@@ -38,12 +38,6 @@ services:
     container_name: portal-gofakes3
     ports:
       - "9000:9000"
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9000"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
     networks:
       - e2e-network
 
@@ -57,7 +51,7 @@ services:
       maildev:
         condition: service_healthy
       gofakes3:
-        condition: service_healthy
+        condition: service_started
     command: ["sh", "-c", "exit 0"]
     networks:
       - e2e-network

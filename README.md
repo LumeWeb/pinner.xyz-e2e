@@ -1,232 +1,294 @@
 # E2E Testing Environment
 
-This directory contains the setup for end-to-end testing of the portal with various services. The setup includes both local development (docker-compose + Makefile) and CI/CD (GitHub Actions workflow) configurations.
+End-to-end testing infrastructure for the LumeWeb Portal application. This repository provides automated testing for portal functionality using docker-compose services, a shared script library, and integrated GitHub Actions workflows.
+
+## Overview
+
+This repository does not contain the portal source code. Instead, it provides infrastructure and automation to:
+
+1. Run infrastructure services via Docker Compose
+2. Build the portal application using the external `portal-builder` image
+3. Configure the portal via environment variables generated from YAML configs
+4. Execute end-to-end tests against the running portal
+
+The portal application is built using `ghcr.io/lumeweb/portal-builder:ubuntu` with a `portal-plugins.yaml` manifest specifying plugins (ipfs, dashboard, core) at `@develop` versions.
 
 ## Architecture
 
-This e2e testing setup consists of:
+### Directory Structure
 
-1. **Docker Compose**: Infrastructure services only (mysql, maildev, gofakes3)
-2. **Makefile**: Local development commands to run e2e tests
-3. **GitHub Workflow**: CI/CD automation for running e2e tests in GitHub Actions
-4. **Shared Bash Scripts**: Reusable scripts for both local and CI environments
+- `docker-compose.yml` - Infrastructure service definitions with health checks
+- `Makefile` - Local development commands
+- `.github/workflows/e2e-tests.yml` - CI/CD automation
+- `.github/actions/` - Reusable composite actions
+- `.github/config/portal-core.yml` - Core portal configuration template
+- `config/portal-mysql.yml` - MySQL configuration reference
+- `scripts/` - Shared bash scripts (used by Makefile and GitHub Actions)
 
-## Services
+### Services
 
-The following services are included in this e2e environment:
+**Docker Compose Services**
+- `mysql` - Percona Server 8.4 on port 3306
+- `maildev` - Email catcher on ports 1025 (SMTP) and 1080 (Web UI)
+- `gofakes3` - S3-compatible storage on port 4568
+- `services-ready` - Synchronization container
 
-- **MySQL**: Database service running on port 3306
-- **Maildev**: Email catching service running on ports 1025 (SMTP) and 1080 (Web UI)
-- **Gofakes3**: S3-compatible storage service running on port 4568
+**External Services**
+- `renterd` - External Sia storage service configured via environment variables
+- `portal` - Built and run separately using portal-builder image
 
-**Note**: The portal itself is NOT included in docker-compose. It's built and run separately using portal-builder.
+### Configuration Flow
 
-**Note**: Renterd is NOT included in docker-compose. It is expected to be an external service configured via dedicated environment variables (`RENTERD_URL`, `RENTERD_API_PASSWORD`, `RENTERD_SEED`).
+1. **Base Config**: `.github/config/portal-core.yml` provides minimal portal settings
+2. **DB Config**: `config/portal-mysql.yml` provides MySQL-specific settings
+3. **Env Generation**: `scripts/setup-env.sh` and `scripts/yaml_to_env.py` convert YAML to `PORTAL__*` environment variables in `.env`
+4. **Renterd Override**: `RENTERD_*` env vars are preserved and mapped to `PORTAL__CORE__STORAGE__SIA__*`
 
-## Local Development
+**Key mappings:**
+- `RENTERD_URL` → `PORTAL__CORE__STORAGE__SIA__URL`
+- `RENTERD_API_PASSWORD` → `PORTAL__CORE__STORAGE__SIA__KEY`
 
-### Prerequisites
+## Prerequisites
 
 - Docker and Docker Compose installed
-- Python 3 with `yq` installed
-- Access to external renterd server
-- Renterd credentials (URL, API password, seed)
+- `yq` installed (YAML processor - available via Go installation)
+- Access to external renterd service
+- Renterd credentials (URL, API password)
 
-### Setup
+## Quick Start
 
-1. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your actual RENTERD_URL, RENTERD_API_PASSWORD, and RENTERD_SEED
-   ```
-
-2. **Start services:**
-   ```bash
-   make up
-   ```
-
-### Running Tests
-
-The Makefile provides several commands:
+### Local Development
 
 ```bash
-# Service Management
-make up              - Start all Docker services
-make down            - Stop all Docker services
-make restart         - Restart all Docker services
-make logs            - View service logs
-make ps              - Show running containers
+# 1. Configure environment
+cp .env.example .env
+# Edit .env with RENTERD_URL and RENTERD_API_PASSWORD
 
-# Portal Build & Run
-make build-portal    - Build portal with plugins
-make setup-env       - Generate environment variables from configs
-make run-portal      - Build and run portal in background
-make stop-portal     - Stop running portal
+# 2. Start services
+make up
 
-# Testing & Cycles
-make test            - Full e2e test cycle with teardown
-make e2e             - Quick e2e test (up -> _test -> down)
-make setup           - Setup environment (no teardown)
-make teardown        - Tear down environment
-
-# Cleanup
-make clean           - Clean up all resources
+# 3. Build and run portal
+make test
 ```
 
-### Configuration Files
+### Manual Testing
 
-- `docker-compose.yml`: Defines infrastructure services only with native health checks
-- `.github/config/portal-core.yml`: Core portal configuration template
-- `.env`: Environment variables (copy from `.env.example`)
-- `portal-mysql.yml`: Generated MySQL configuration (auto-created by setup-env.sh)
+```bash
+# Service management
+make up              # Start all Docker services
+make down            # Stop all Docker services
+make restart         # Restart all Docker services
+make logs            # View service logs
+make ps              # Show running containers
 
-### Health Checks
+# Portal build & run
+make ensure-portal-built  # Build portal with plugins
+make setup-env            # Generate environment variables
+make start-portal         # Build and run portal in background
+make stop-portal          # Stop running portal
 
-Docker Compose uses native health checks for all services:
-- MySQL: Built-in health check via `mysqladmin ping`
-- Maildev: Checks SMTP port 1025
-- Gofakes3: Checks port 4568
+# Testing & cycles
+make test            # Full e2e test cycle with teardown
+make e2e             # Quick e2e test (up -> _test -> down)
+make setup           # Setup environment (no teardown)
+make teardown        # Tear down environment
 
-The `services-ready` container depends on all services being healthy, providing a synchronization point for external processes.
+# Cleanup
+make clean           # Clean up all resources
+```
 
-### Accessing Services (Local)
+## Configuration Management
+
+**NEVER manually manipulate environment variables.** Always regenerate from YAML configs:
+
+1. Update configuration in `config/portal-mysql.yml` (or `.github/config/portal-core.yml` for base settings)
+2. Run `make setup-env` to regenerate `.env`
+3. Source `.env` before running commands
+
+This ensures consistent configuration across local and CI/CD environments.
+
+## Manual Testing Steps
+
+1. ```bash
+   make up
+   make ensure-portal-built
+   make setup-env
+   make start-portal
+   ```
+
+2. Source the environment and verify portal:
+   ```bash
+   . .env
+   curl -H "Host: localhost:$PORTAL__CORE__PORT" http://localhost:$PORTAL__CORE__PORT/api/meta
+   ```
+
+3. Run tests manually or via the test cycle:
+   ```bash
+   make _test
+   make teardown
+   ```
+
+## Running E2E Tests
+
+### Using the Test Runner
+
+Always use `scripts/run-tests.sh` to run tests. This script loads the `.env` file before execution.
+
+```bash
+# Run all e2e tests
+./scripts/run-tests.sh
+
+# Run tests with verbose output
+./scripts/run-tests.sh --godog.format=pretty
+
+# Run specific scenario using tag
+./scripts/run-tests.sh --godog.tags="@delete-api-key"
+
+# Run specific feature file
+./scripts/run-tests.sh features/account_management.feature
+```
+
+### Test Organization
+
+The e2e tests use godog (Cucumber for Go):
+- `features/` - BDD scenarios
+- `steps/` - Step definitions
+- `helpers/` - Shared test utilities
+
+Each scenario must have a unique tag for individual execution.
+
+## CI/CD
+
+### GitHub Actions Workflow
+
+The workflow triggers on push/PR to `main` or `develop` branches:
+
+- Uses shared bash scripts from `scripts/`
+- Runs MySQL, Maildev, and Gofakes3 as GitHub Actions services
+- Uploads build artifacts
+- Runs full e2e test suite
+
+### Required Secrets
+
+Configure these in your GitHub repository:
+- `RENTERD_URL` - URL to external renterd service
+- `RENTERD_API_PASSWORD` - API password for renterd authentication
+
+## Shared Script Architecture
+
+All scripts in `scripts/` work in both local and GitHub Actions environments:
+
+```bash
+# Create plugin manifest
+./scripts/create-plugin-manifest.sh
+
+# Generate environment variables
+./scripts/setup-env.sh mysql
+
+# Start portal in background with logging
+# Uses PORTAL_PORT from environment (default: 8080)
+./scripts/start-portal.sh
+
+# Wait for services (timeouts configurable via env vars)
+./scripts/wait-mysql.sh
+./scripts/wait-portal.sh
+./scripts/wait-stop-portal.sh 10
+
+# DNS server
+./scripts/start-dns.sh
+./scripts/stop-dns.sh
+```
+
+## Important Notes
+
+### Portal HTTP Endpoint
+
+The portal HTTP endpoint (port 8080) may take several seconds to become available. This is because the portal loads all plugins before starting the HTTP server. The wait scripts ensure tests only run after the portal is ready.
+
+### vhost Routing
+
+The portal uses vhost routing with different subdomains for different plugin APIs:
+
+```bash
+# Core/meta endpoints
+curl -H "Host: localhost:8080" http://localhost:8080/api/meta
+
+# Account/authentication endpoints
+curl -H "Host: account.localhost:8080" \
+       -H "Content-Type: application/json" \
+       -d '{"email":"test@example.com","password":"Test123!"}' \
+       http://localhost:8080/api/auth/register
+```
+
+**Host headers by plugin:**
+- Core/meta: `Host: localhost:8080`
+- Account/auth: `Host: account.localhost:8080`
+
+## Service Access
+
+### Local Development
 
 - **Maildev Web UI**: http://localhost:1080
 - **Gofakes3**: http://localhost:4568
 
-## GitHub Actions CI/CD
-
-### Workflow File
-
-The GitHub Actions workflow is located at `.github/workflows/e2e-tests.yml`.
-
-### Modular Actions
-
-The workflow uses reusable composite actions in `.github/actions/` that delegate to shared bash scripts:
-
-- **setup-env/action.yml**: Calls `scripts/setup-env.sh` to generate environment variables
-- **build-portal/action.yml**: Builds portal using portal-builder image
-- **run-portal/action.yml**: Calls `scripts/run-portal.sh` to run portal and verify startup
-
-### Shared Bash Scripts
-
-The following bash scripts are shared between local Makefile and GitHub Actions:
-
-- **scripts/setup-env.sh**: Generates environment variables from YAML configs
-  - Usage: `./scripts/setup-env.sh [mysql|sqlite] [true|false]`
-  - Second parameter `true` enables GitHub Actions mode (exports to GITHUB_ENV)
-- **scripts/run-portal.sh**: Runs portal and verifies it binds to the expected port
-  - Usage: `./scripts/run-portal.sh [true|false]`
-  - Parameter `true` enables GitHub Actions mode
-
-### Required Secrets
-
-Configure these secrets in your GitHub repository:
-
-- `RENTERD_URL`: URL to external renterd server
-- `RENTERD_API_PASSWORD`: API password for renterd authentication
-- `RENTERD_SEED`: Seed for renterd configuration
-
-### Workflow Features
-
-- Triggers on push/PR to develop branch
-- Runs all services as GitHub Actions services
-- Builds portal using portal-builder with `portal-plugins.yaml` manifest
-- Configures MySQL mode with dedicated environment variables
-- Waits for services to be healthy
-- Runs portal with environment variables
-- Executes e2e tests
-- Uploads test results as artifacts
-
-### GitHub Actions Services
-
-The workflow uses GitHub Actions services for:
-- **MySQL**: percona/percona-server:8.4
-- **Maildev**: maildev/maildev:latest
-- **Gofakes3**: johannesboyne/gofakes3:latest
-
-## Configuration Details
-
-### MySQL Mode
-
-The portal is configured to run in MySQL mode with the following settings:
-- Host: 127.0.0.1
-- Port: 3306
-- Database: portal
-- User: portal
-- Password: portal
-- Charset: utf8mb4
-
-These settings are generated by `scripts/setup-env.sh` and converted to `PORTAL__CORE__DB__*` environment variables.
-
-### Plugins
-
-The following plugins are configured to use the develop version:
-- IPFS plugin: `go.lumeweb.com/portal-plugin-ipfs@develop`
-- Dashboard plugin: `go.lumeweb.com/portal-plugin-dashboard@develop`
-- Core plugin: `go.lumeweb.com/portal-plugin-core@develop`
-
-These are specified in `portal-plugins.yaml` which is created by the GitHub Actions workflow. The portal-builder image uses this manifest to build portal with the correct plugins.
-
-**Note**: Plugins must use the full Go module path (e.g., `go.lumeweb.com/portal-plugin-ipfs@develop`).
-
-### Renterd Configuration
-
-Renterd is configured via dedicated environment variables that map to portal configuration:
-
-| Environment Variable | Portal Configuration Path |
-|---------------------|--------------------------|
-| `RENTERD_URL` | `PORTAL__CORE__STORAGE__SIA__URL` |
-| `RENTERD_API_PASSWORD` | `PORTAL__CORE__STORAGE__SIA__API_PASSWORD` |
-| `RENTERD_SEED` | `PORTAL__CORE__STORAGE__SIA__SEED` |
-
-The `scripts/setup-env.sh` script automatically maps these variables when running in either local or GitHub Actions mode.
-
-## Testing
-
-### Local Testing
-
-```bash
-# Full e2e test cycle with teardown
-make test
-
-# Quick e2e test (up -> _test -> down)
-make e2e
-
-# Setup environment (no teardown)
-make setup
-
-# Tear down environment
-make teardown
-
-# Manual step-by-step
-make up
-make build-portal
-make setup-env
-make run-portal
-# ... run tests manually ...
-make down
-make clean
-```
-
-### CI Testing
-
-Push to develop branch or create a PR to trigger the e2e test workflow.
-
 ## Troubleshooting
 
-### Services not starting
+### Services Not Starting
 
-Check logs with: `docker-compose logs <service-name>`
+```bash
+# Check service logs
+docker-compose logs <service-name>
 
-### Portal not connecting to MySQL
+# Check service status
+docker-compose ps
 
-Ensure MySQL is healthy: `docker-compose ps mysql`
+# Verify service health
+docker-compose ps
+```
 
-### Renterd authentication issues
+### Portal Not Connecting to MySQL
 
-Verify your `.env` file has the correct `RENTERD_URL`, `RENTERD_API_PASSWORD`, and `RENTERD_SEED`, or that the GitHub secrets are configured.
+```bash
+# Verify MySQL is healthy
+docker-compose ps mysql
+```
 
-### Test failures
+### Renterd Authentication Issues
 
-Check test logs in the uploaded artifacts from GitHub Actions.
+Verify your `.env` file contains correct values:
+- `RENTERD_URL`
+- `RENTERD_API_PASSWORD`
+
+For CI/CD, ensure GitHub secrets are configured.
+
+### Test Failures
+
+Check test logs in GitHub Actions artifacts or review locally:
+
+```bash
+make _test
+```
+
+## Service Health Checks
+
+**Local (Docker Compose):**
+- **MySQL**: `mysqladmin ping -h localhost -u root -prootpassword`
+- **Maildev**: HTTP check on port 1080
+- **Gofakes3**: Port check on 9000
+
+The `services-ready` container depends on all services being healthy, providing a synchronization point for external processes.
+
+**GitHub Actions:**
+- MySQL runs as a service with health checks configured in the workflow
+- `scripts/wait-mysql.sh` detects environment and uses appropriate connection method:
+  - GitHub Actions: `mysqladmin ping -h localhost` (service connection)
+  - Local: `docker compose exec -T mysql mysqladmin ping`
+
+## Plugin Configuration
+
+The following plugins are configured at `@develop` versions:
+- IPFS plugin: `go.lumeweb.com/portal-plugin-ipfs`
+- Dashboard plugin: `go.lumeweb.com/portal-plugin-dashboard`
+- Core plugin: `go.lumeweb.com/portal-plugin-core`
+
+Plugins are specified in `portal-plugins.yaml`, created by `scripts/create-plugin-manifest.sh`. The portal-builder image uses this manifest to build the portal with the correct plugins.

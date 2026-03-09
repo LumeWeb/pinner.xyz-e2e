@@ -6,6 +6,7 @@ core:
   port: 8080
   secure: false
   post_upload_limit: 104857600
+  dns_resolver: "127.0.0.1:5353"
 
 # core.db:
 #   type: "sqlite"
@@ -18,19 +19,14 @@ core.mail:
   host: "localhost"
   port: 25
   ssl: false
+  tls_policy: "NoTLS"
   auth_type: "none"
   username: "test"
   password: "test"
   from: "test@localhost"
 
 # Renterd configuration - these MUST be set as environment variables
-# Required: RENTERD_URL, RENTERD_API_PASSWORD, RENTERD_SEED
+# Required: RENTERD_URL, RENTERD_API_PASSWORD
 core.storage.sia:
   url: ""
-  api_password: ""
-  seed: ""
-
-# WARNING: This is a TEST seed for CI/CD purposes only.
-# This seed is INTENTIONALLY COMPROMISED and MUST NOT be used in production.
-# DO NOT use this seed for any real deployments or secure operations.
-core.identity: "victory coin oven horn blade sausage large jungle differ talent coral jewel"
+  key: ""
