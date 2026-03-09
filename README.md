@@ -30,7 +30,7 @@ The portal application is built using `ghcr.io/lumeweb/portal-builder:ubuntu` wi
 **Docker Compose Services**
 - `mysql` - Percona Server 8.4 on port 3306
 - `maildev` - Email catcher on ports 1025 (SMTP) and 1080 (Web UI)
-- `gofakes3` - S3-compatible storage on port 4568
+- `gofakes3` - S3-compatible storage on port 9000
 - `services-ready` - Synchronization container
 
 **External Services**
@@ -230,7 +230,7 @@ curl -H "Host: account.localhost:8080" \
 ### Local Development
 
 - **Maildev Web UI**: http://localhost:1080
-- **Gofakes3**: http://localhost:4568
+- **Gofakes3**: http://localhost:9000
 
 ## Troubleshooting
 

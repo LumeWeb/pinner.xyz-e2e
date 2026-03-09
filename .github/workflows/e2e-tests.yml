@@ -94,14 +94,14 @@ jobs:
         RENTERD_URL: ${{ secrets.RENTERD_URL }}
         RENTERD_API_PASSWORD: ${{ secrets.RENTERD_API_PASSWORD }}
     
-    - name: Start Portal
-      uses: ./.github/actions/start-portal
-      id: portal
-    
     - name: Wait for Services
       run: |
         chmod +x ./scripts/wait-gofakes3.sh
         ./scripts/wait-gofakes3.sh
+    
+    - name: Start Portal
+      uses: ./.github/actions/start-portal
+      id: portal
     
     - name: Wait for Portal
       run: |
