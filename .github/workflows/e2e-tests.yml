@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     name: Build Portal
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
     - name: Checkout Repo
       uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
   run:
     name: Run Portal (MySQL)
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       mysql:
         image: percona/percona-server:8.4
