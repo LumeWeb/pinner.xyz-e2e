@@ -30,7 +30,7 @@ The portal application is built using `ghcr.io/lumeweb/portal-builder:ubuntu` wi
 **Docker Compose Services**
 - `mysql` - Percona Server 8.4 on port 3306
 - `maildev` - Email catcher on ports 1025 (SMTP) and 1080 (Web UI)
-- `gofakes3` - S3-compatible storage on port 4568
+- `gofakes3` - S3-compatible storage on port 9000
 - `services-ready` - Synchronization container
 
 **External Services**
@@ -191,6 +191,7 @@ All scripts in `scripts/` work in both local and GitHub Actions environments:
 
 # Wait for services (timeouts configurable via env vars)
 ./scripts/wait-mysql.sh
+./scripts/wait-gofakes3.sh
 ./scripts/wait-portal.sh
 ./scripts/wait-stop-portal.sh 10
 
@@ -229,7 +230,7 @@ curl -H "Host: account.localhost:8080" \
 ### Local Development
 
 - **Maildev Web UI**: http://localhost:1080
-- **Gofakes3**: http://localhost:4568
+- **Gofakes3**: http://localhost:9000
 
 ## Troubleshooting
 
@@ -283,6 +284,7 @@ The `services-ready` container depends on all services being healthy, providing 
 - `scripts/wait-mysql.sh` detects environment and uses appropriate connection method:
   - GitHub Actions: `mysqladmin ping -h localhost` (service connection)
   - Local: `docker compose exec -T mysql mysqladmin ping`
+- `scripts/wait-gofakes3.sh` checks exposed port 9000 on localhost for gofakes3 readiness (works in both CI and local)
 
 ## Plugin Configuration
 

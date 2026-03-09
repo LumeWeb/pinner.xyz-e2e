@@ -63,6 +63,7 @@ Bash scripts in `scripts/` provide shared functionality for multiple environment
 - `scripts/load-env.sh` - Loads environment from .env.renterd and .env (supports quiet mode)
 - `scripts/yaml_to_env.py` - Converts YAML to `PORTAL__*` env vars using double-underscore separator for nested keys
 - `scripts/wait-mysql.sh [timeout_seconds]` - Waits for MySQL to be ready for connections (uses MYSQL_WAIT_TIMEOUT env var, detects GitHub Actions vs local automatically)
+- `scripts/wait-gofakes3.sh [timeout_seconds]` - Waits for gofakes3 to be ready on port 9000 (uses GOFAKES3_WAIT_TIMEOUT env var)
 - `scripts/wait-portal.sh [timeout_seconds]` - Waits for portal HTTP endpoint to be available (uses PORTAL_PORT and PORTAL_WAIT_TIMEOUT env vars)
 - `scripts/wait-stop-portal.sh [timeout_seconds]` - Waits for portal process to stop gracefully
 - `scripts/start-dns.sh` - Starts dynamic DNS server
@@ -86,6 +87,7 @@ Bash scripts in `scripts/` provide shared functionality for multiple environment
 
 # Wait for services (all timeouts configurable via env vars)
 ./scripts/wait-mysql.sh
+./scripts/wait-gofakes3.sh
 ./scripts/wait-portal.sh
 ./scripts/wait-stop-portal.sh 10
 
@@ -355,12 +357,14 @@ Composite actions in `.github/actions/` delegate to shared scripts, ensuring con
 
 Several scripts support configurable timeout values via environment variables:
 
+- **`GOFAKES3_WAIT_TIMEOUT`** - Timeout for `wait-gofakes3.sh` (default: 30 seconds)
 - **`PORTAL_WAIT_TIMEOUT`** - Timeout for `wait-portal.sh` (default: 30 seconds)
 - **`MYSQL_WAIT_TIMEOUT`** - Timeout for `wait-mysql.sh` (default: 30 seconds)
 
 Example:
 ```bash
 # Use custom timeout
+GOFAKES3_WAIT_TIMEOUT=60 ./scripts/wait-gofakes3.sh
 PORTAL_WAIT_TIMEOUT=60 ./scripts/wait-portal.sh
 MYSQL_WAIT_TIMEOUT=60 ./scripts/wait-mysql.sh
 ```
