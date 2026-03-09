@@ -22,17 +22,7 @@ jobs:
         submodules: true
     
     - name: Create Plugin Manifest
-      run: |
-        # Initialize manifest with portal version
-        yq -n '.portalVersion = "develop"' > portal-plugins.yaml
-        
-        # Add plugins
-        yq -i '.plugins[0].module = "go.lumeweb.com/portal-plugin-ipfs" | .plugins[0].version = "develop"' portal-plugins.yaml
-        yq -i '.plugins[1].module = "go.lumeweb.com/portal-plugin-dashboard" | .plugins[1].version = "develop"' portal-plugins.yaml
-        yq -i '.plugins[2].module = "go.lumeweb.com/portal-plugin-core" | .plugins[2].version = "develop"' portal-plugins.yaml
-        
-        echo "Created portal-plugins.yaml:"
-        cat portal-plugins.yaml
+      run: ./scripts/create-plugin-manifest.sh
     
     - name: Build Portal
       uses: addnab/docker-run-action@v3
@@ -67,6 +57,27 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+      
+      maildev:
+        image: maildev/maildev:latest
+        ports:
+          - 1025:1025
+          - 1080:1080
+        options: >-
+          --health-cmd="wget --spider -q http://localhost:1080"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      
+      gofakes3:
+        image: johannesboyne/gofakes3:latest
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="nc -z localhost 9000"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
     
     steps:
     - name: Checkout Repo
@@ -85,7 +96,24 @@ jobs:
       env:
         RENTERD_URL: ${{ secrets.RENTERD_URL }}
         RENTERD_API_PASSWORD: ${{ secrets.RENTERD_API_PASSWORD }}
-        RENTERD_SEED: ${{ secrets.RENTERD_SEED }}
     
-    - name: Run Portal
-      uses: ./.github/actions/run-portal
+    - name: Start Portal
+      uses: ./.github/actions/start-portal
+    
+    - name: Wait for Portal
+      run: |
+        chmod +x ./scripts/wait-portal.sh
+        ./scripts/wait-portal.sh
+    
+    - name: Run E2E Tests
+      run: |
+        chmod +x ./scripts/run-tests.sh
+        ./scripts/run-tests.sh
+    
+    - name: Portal Logs
+      if: always()
+      run: |
+        if [ -f .portal.log ]; then
+          echo "=== Portal Logs ==="
+          cat .portal.log || true
+        fi

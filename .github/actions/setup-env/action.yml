@@ -11,17 +11,8 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout Workflows for Config
-      uses: actions/checkout@v4
-      with:
-        repository: LumeWeb/workflows
-        path: workflows-config
-        sparse-checkout: |
-          .github/config
-          scripts
-
     - name: Generate Environment Variables
       shell: bash
       run: |
-        chmod +x ./workflows-config/scripts/setup-env.sh
-        ./workflows-config/scripts/setup-env.sh "${{ inputs.db_type }}" true
+        chmod +x ./scripts/setup-env.sh
+        ./scripts/setup-env.sh "${{ inputs.db_type }}" true
