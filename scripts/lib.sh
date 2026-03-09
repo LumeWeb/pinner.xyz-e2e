@@ -149,6 +149,29 @@ require_dir() {
   fi
 }
 
+# Safely source environment file
+# Usage: source_env_file <file_path>
+# Sets allexport mode before sourcing, ensures set +a runs even on failure
+# Returns: 0 on success, 1 on failure
+source_env_file() {
+  local file="$1"
+  
+  if [ ! -f "$file" ]; then
+    return 1
+  fi
+  
+  set -a
+  # shellcheck disable=SC1090
+  if ! . "$file"; then
+    set +a
+    # shellcheck disable=SC2317
+    # SC2317 is safe to ignore here: this pattern handles both sourced and executed contexts
+    return 1 2>/dev/null || exit 1
+  fi
+  set +a
+  return 0
+}
+
 # Check if port is in use
 # Usage: is_port_in_use <port>
 is_port_in_use() {

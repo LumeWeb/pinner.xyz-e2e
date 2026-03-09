@@ -35,7 +35,8 @@ MYSQL_HOST="${PORTAL__CORE__DB__HOST}"
 if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
   # GitHub Actions: MySQL service is accessible via localhost
   log_info "Using GitHub Actions MySQL service"
-  if wait_with_timeout "$TIMEOUT" "mysqladmin ping -h localhost -u $MYSQL_USER -p$MYSQL_PASSWORD --silent"; then
+  export MYSQL_PWD="$MYSQL_PASSWORD"
+  if wait_with_timeout "$TIMEOUT" "mysqladmin ping -h localhost -u ${MYSQL_USER} --silent"; then
     log_ok "MySQL is ready"
     exit 0
   else

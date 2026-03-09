@@ -30,7 +30,7 @@ The portal application is built using `ghcr.io/lumeweb/portal-builder:ubuntu` wi
 **Docker Compose Services**
 - `mysql` - Percona Server 8.4 on port 3306
 - `maildev` - Email catcher on ports 1025 (SMTP) and 1080 (Web UI)
-- `gofakes3` - S3-compatible storage on port 9000
+- `gofakes3` - S3-compatible storage on port 4568
 - `services-ready` - Synchronization container
 
 **External Services**

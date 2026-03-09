@@ -15,7 +15,7 @@ set -euo pipefail
 #   PORTAL_PORT - Port to run portal on (default: 8080)
 
 # Log file path
-LOG_PATH="${1:-.portal.log}"
+LOG_PATH="${LOGFILE:-${1:-.portal.log}}"
 
 # Use PORTAL_PORT from environment or default to 8080
 PORT="${PORTAL_PORT:-8080}"
@@ -46,6 +46,12 @@ else
 fi
 
 PID=$!
+
+# Verify the process actually started
+if [ -z "$PID" ] || ! kill -0 "$PID" 2>/dev/null; then
+  echo "Failed to start portal" >&2
+  exit 1
+fi
 
 # Save PID for later cleanup
 echo "$PID" > .portal.pid
