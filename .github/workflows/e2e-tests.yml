@@ -102,6 +102,9 @@ jobs:
     - name: Start Portal
       uses: ./.github/actions/start-portal
       id: portal
+      with:
+        renterd_url: ${{ secrets.RENTERD_URL }}
+        renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
     
     - name: Wait for Portal
       run: |

@@ -41,13 +41,8 @@ fi
 # Run godog tests
 log_info "Running E2E tests..."
 
-# Check if godog is installed
-if ! command -v godog &> /dev/null; then
-    log_error "godog is not installed. Install it with: go install github.com/cucumber/godog/cmd/godog@latest"
-    exit 1
-fi
-
-# Run tests with default godog.strict=false and pass-through any additional arguments
-godog --godog.strict=false "$@"
+# Run tests using go test with godog
+# Pass-through any additional arguments
+go test -v "$@"
 
 log_info "Test execution completed"
