@@ -42,7 +42,7 @@ fi
 log_info "Running E2E tests..."
 
 # Run tests using go test with godog
-# Pass-through any additional arguments
-go test -v "$@"
+# Pass-through any additional arguments after -args
+go test -v -args "$@"
 
 log_info "Test execution completed"
