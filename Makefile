@@ -97,6 +97,7 @@ start-portal: ensure-portal-built setup-env
 	@cp ./dist/portal ./portal
 	@chmod +x ./portal
 	@./scripts/wait-mysql.sh
+	@./scripts/wait-gofakes3.sh
 	@./scripts/start-portal.sh .portal.log
 	@sleep 3
 	@echo "[OK] Portal started (PID: $(cat .portal.pid))"

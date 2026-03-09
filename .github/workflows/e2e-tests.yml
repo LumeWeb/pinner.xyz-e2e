@@ -75,11 +75,6 @@ jobs:
         image: johannesboyne/gofakes3:latest
         ports:
           - 9000:9000
-        options: >-
-          --health-cmd="nc -z localhost 9000"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
     
     steps:
     - name: Checkout Repo
@@ -102,6 +97,11 @@ jobs:
     - name: Start Portal
       uses: ./.github/actions/start-portal
       id: portal
+    
+    - name: Wait for Services
+      run: |
+        chmod +x ./scripts/wait-gofakes3.sh
+        ./scripts/wait-gofakes3.sh
     
     - name: Wait for Portal
       run: |

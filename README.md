@@ -191,6 +191,7 @@ All scripts in `scripts/` work in both local and GitHub Actions environments:
 
 # Wait for services (timeouts configurable via env vars)
 ./scripts/wait-mysql.sh
+./scripts/wait-gofakes3.sh
 ./scripts/wait-portal.sh
 ./scripts/wait-stop-portal.sh 10
 
@@ -283,6 +284,7 @@ The `services-ready` container depends on all services being healthy, providing 
 - `scripts/wait-mysql.sh` detects environment and uses appropriate connection method:
   - GitHub Actions: `mysqladmin ping -h localhost` (service connection)
   - Local: `docker compose exec -T mysql mysqladmin ping`
+- `scripts/wait-gofakes3.sh` checks exposed port 9000 on localhost for gofakes3 readiness (works in both CI and local)
 
 ## Plugin Configuration
 
