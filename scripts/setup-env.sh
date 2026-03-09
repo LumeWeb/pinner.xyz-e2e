@@ -15,16 +15,20 @@ WORKFLOW_MODE="${2:-false}"
 # Config file locations (same for both local and GitHub Actions)
 WORKFLOWS_CORE_CONFIG=".github/config/portal-core.yml"
 YAML_TO_ENV_SCRIPT="scripts/yaml_to_env.py"
-# Preserve RENTERD_* variables from existing .env file
-if [ -f .env ]; then
-  # shellcheck disable=SC1091
-  . .env
-  # Save renterd values
-  PRESERVED_RENTERD_URL="${RENTERD_URL:-}"
-  PRESERVED_RENTERD_API_PASSWORD="${RENTERD_API_PASSWORD:-}"
-else
-  PRESERVED_RENTERD_URL=""
-  PRESERVED_RENTERD_API_PASSWORD=""
+# Preserve RENTERD_* variables from environment or existing .env file
+# Environment variables take precedence over .env file
+PRESERVED_RENTERD_URL="${RENTERD_URL:-}"
+PRESERVED_RENTERD_API_PASSWORD="${RENTERD_API_PASSWORD:-}"
+
+# If not set in environment, try to load from .env file
+if [ -z "${PRESERVED_RENTERD_URL}" ] || [ -z "${PRESERVED_RENTERD_API_PASSWORD}" ]; then
+  if [ -f .env ]; then
+    # shellcheck disable=SC1091
+    . .env
+    # Use environment values first, then fall back to .env values
+    PRESERVED_RENTERD_URL="${RENTERD_URL:-${PRESERVED_RENTERD_URL:-}}"
+    PRESERVED_RENTERD_API_PASSWORD="${RENTERD_API_PASSWORD:-${PRESERVED_RENTERD_API_PASSWORD:-}}"
+  fi
 fi
 
 # Clear existing .env file
@@ -92,9 +96,15 @@ rm -f "$TEMP_ENV"
 # shellcheck disable=SC1091
 QUIET=1 . scripts/load-env.sh
 
-# GitHub Actions mode: export to GITHUB_ENV
+# GitHub Actions mode: export all PORTAL__* variables to GITHUB_ENV
+# This makes them available to all subsequent steps without needing to source .env
 if [ "$WORKFLOW_MODE" = "true" ]; then
   if [ -n "${GITHUB_ENV:-}" ]; then
+    # Extract and export all PORTAL__* variables from .env
+    # Remove 'export ' prefix and write to GITHUB_ENV
+    grep '^export PORTAL__' .env | sed 's/^export //' > "$GITHUB_ENV"
+    
+    # Export convenience variables for backward compatibility
     echo "PORTAL_PORT=${PORTAL_PORT:-8080}" >> "$GITHUB_ENV"
     echo "PORTAL_HOST=${PORTAL_HOST:-localhost}" >> "$GITHUB_ENV"
   else
