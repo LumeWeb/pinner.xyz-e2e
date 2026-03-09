@@ -547,11 +547,7 @@ func (s *AccountSteps) eachUserCreatesAnAPIKeyNamed(ctx context.Context, name st
 		return ctx, fmt.Errorf("failed to login first user: %w", err)
 	}
 
-	api1 := account.NewClient(
-		account.WithJWT(loginResult1.Token),
-		account.WithEndpoint(helpers.GetPortalEndpoint()),
-		account.WithHostOverride(helpers.GetPortalHost(), helpers.GetPortalTarget()),
-	)
+	api1 := helpers.CreateAuthenticatedClient(loginResult1.Token)
 
 	apiKey1, err := api1.CreateAPIKey(ctx, name)
 	if err != nil {
@@ -567,11 +563,7 @@ func (s *AccountSteps) eachUserCreatesAnAPIKeyNamed(ctx context.Context, name st
 		return ctx, fmt.Errorf("failed to login second user: %w", err)
 	}
 
-	api2 := account.NewClient(
-		account.WithJWT(loginResult2.Token),
-		account.WithEndpoint(helpers.GetPortalEndpoint()),
-		account.WithHostOverride(helpers.GetPortalHost(), helpers.GetPortalTarget()),
-	)
+	api2 := helpers.CreateAuthenticatedClient(loginResult2.Token)
 
 	apiKey2, err := api2.CreateAPIKey(ctx, name)
 	if err != nil {

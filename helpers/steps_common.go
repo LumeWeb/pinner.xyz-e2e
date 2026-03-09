@@ -167,11 +167,11 @@ func GetUnauthenticatedClient() account.AccountAPI {
 	)
 }
 
-// createAuthenticatedClient creates an authenticated client with the given JWT token.
+// CreateAuthenticatedClient creates an authenticated client with the given JWT token.
 // This helper DRYs up the client creation logic used across multiple functions.
-func createAuthenticatedClient(token string) account.AccountAPI {
+func CreateAuthenticatedClient(token string) account.AccountAPI {
 	if token == "" {
-		panic("createAuthenticatedClient called with empty token")
+		panic("CreateAuthenticatedClient called with empty token")
 	}
 	return account.NewClient(
 		account.WithJWT(token),
@@ -204,7 +204,7 @@ func RequireTestUser(ctx context.Context) (*TestUser, error) {
 // This is a legacy function kept for backward compatibility.
 // Prefer using the client stored in context via GetAuthenticatedClientFromContext.
 func createNewAuthenticatedClient(token string) account.AccountAPI {
-	return createAuthenticatedClient(token)
+	return CreateAuthenticatedClient(token)
 }
 
 // GetAuthenticatedClientFromContext retrieves the shared authenticated client from context
@@ -220,7 +220,7 @@ func GetAuthenticatedClientFromContext(ctx context.Context) account.AccountAPI {
 		return nil
 	}
 	
-	return createAuthenticatedClient(token)
+	return CreateAuthenticatedClient(token)
 }
 
 // EnsureAuthenticatedURLHost returns consistent vhost routing configuration for account operations
@@ -299,7 +299,7 @@ func LoginTestUser(ctx context.Context) (context.Context, error) {
 
 	// Create authenticated client with JWT token
 	// The portal accepts JWT tokens via Authorization header
-	authClient := createAuthenticatedClient(loginResult.Token)
+	authClient := CreateAuthenticatedClient(loginResult.Token)
 	ctx = SetJWTToken(ctx, loginResult.Token)
 	ctx = SetAuthenticatedClient(ctx, authClient)
 	return ctx, nil

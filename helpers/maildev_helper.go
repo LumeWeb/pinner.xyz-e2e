@@ -37,6 +37,10 @@ type Address struct {
 	Name    string `json:"name"`
 }
 
+// DefaultTokenPattern is the default regex pattern for extracting tokens from emails
+// Portal sends short tokens (as short as 6 characters), so we match tokens of any length
+const DefaultTokenPattern = `token[=:][\s"\']*([a-zA-Z0-9_-]+)`
+
 // NewMailDevClient creates a new MailDev client
 func NewMailDevClient(baseURL string) *MailDevClient {
 	if baseURL == "" {
@@ -161,7 +165,7 @@ func (m *MailDevClient) extractToken(content, pattern string) string {
 	// Try common token patterns if custom pattern fails
 	// Note: Portal sends short 6-character tokens, so we match tokens of any length
 	patterns := []string{
-		`token[=:][\s"\']*([a-zA-Z0-9_-]+)`,
+		DefaultTokenPattern,
 		`/token/([a-zA-Z0-9_-]+)`,
 		`\?token=([a-zA-Z0-9_-]+)`,
 		`reset[/_]token[=:][\s"\']*([a-zA-Z0-9_-]+)`,

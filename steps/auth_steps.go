@@ -183,12 +183,8 @@ func (s *AuthSteps) anExistingRegisteredUserWithAnAPIKey(ctx context.Context) (c
 	// Store JWT token in context
 	ctx = helpers.SetJWTToken(ctx, loginResult.Token)
 
-	// Create authenticated client
-	authClient := account.NewClient(
-		account.WithJWT(loginResult.Token),
-		account.WithEndpoint(helpers.GetPortalEndpoint()),
-		account.WithHostOverride(helpers.GetPortalHost(), helpers.GetPortalTarget()),
-	)
+	// Create authenticated client using helper
+	authClient := helpers.CreateAuthenticatedClient(loginResult.Token)
 	ctx = helpers.SetAuthenticatedClient(ctx, authClient)
 
 	// Create API key with JWT
@@ -288,12 +284,8 @@ func (s *AuthSteps) anExistingRegisteredUserWith2FAEnabled(ctx context.Context) 
 		return ctx, fmt.Errorf("failed to login: %w", err)
 	}
 
-	// Create authenticated client
-	authClient := account.NewClient(
-		account.WithJWT(loginResult.Token),
-		account.WithEndpoint(helpers.GetPortalServer()),
-		account.WithHostOverride(helpers.GetPortalHost(), helpers.GetPortalTarget()),
-	)
+	// Create authenticated client using helper
+	authClient := helpers.CreateAuthenticatedClient(loginResult.Token)
 	ctx = helpers.SetAuthenticatedClient(ctx, authClient)
 
 	// Enable 2FA

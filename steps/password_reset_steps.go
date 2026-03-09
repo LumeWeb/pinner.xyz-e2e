@@ -104,7 +104,7 @@ func (s *PasswordResetSteps) passwordResetEmailReceived(ctx context.Context) (co
 	}
 
 	// Extract token from email content
-	token, err := maildev.ExtractTokenFromEmail(email, `token[=:][\s"']*([a-zA-Z0-9_-]{20,})`)
+	token, err := maildev.ExtractTokenFromEmail(email, helpers.DefaultTokenPattern)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to extract token from email: %w", err)
 	}
@@ -214,7 +214,7 @@ func (s *PasswordResetSteps) verificationEmailReceived(ctx context.Context) (con
 	}
 
 	// Extract token from email content
-	token, err := maildev.ExtractTokenFromEmail(email, `token[=:][\s"']*([a-zA-Z0-9_-]{20,})`)
+	token, err := maildev.ExtractTokenFromEmail(email, helpers.DefaultTokenPattern)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to extract token from email: %w", err)
 	}

@@ -192,10 +192,11 @@ func (s *PasswordProfileSteps) passwordChangeFailsValidation(ctx context.Context
 // Steps for logout
 
 func (s *PasswordProfileSteps) userLogsOut(ctx context.Context) (context.Context, error) {
-	// Check if API has Logout method and call it
 	api := helpers.GetAuthenticatedClientFromContext(ctx)
 	if api != nil {
-		// Clear the JWT from context which effectively invalidates the session
+		// Call the logout API endpoint to invalidate server-side session
+		api.Logout(ctx)
+		// Clear the JWT from context
 		ctx = context.WithValue(ctx, helpers.JWTTokenKey, "")
 		ctx = context.WithValue(ctx, helpers.AuthenticatedClientKey, nil)
 	}
