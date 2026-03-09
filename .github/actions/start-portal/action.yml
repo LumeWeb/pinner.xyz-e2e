@@ -6,6 +6,12 @@ inputs:
     description: 'Path to log file'
     required: false
     default: '.portal.log'
+  renterd_url:
+    description: 'Renterd URL endpoint'
+    required: true
+  renterd_api_password:
+    description: 'Renterd API authentication password'
+    required: true
 
 outputs:
   log_file:
@@ -19,6 +25,8 @@ runs:
       shell: bash
       env:
         QUIET: ${{ runner.debug == '1' && '0' || '1' }}
+        RENTERD_URL: ${{ inputs.renterd_url }}
+        RENTERD_API_PASSWORD: ${{ inputs.renterd_api_password }}
       run: |
         # Ensure portal is in the expected location
         if [ ! -f "./portal" ] && [ -f "./dist/portal" ]; then
@@ -31,6 +39,8 @@ runs:
         ./scripts/wait-mysql.sh
         
         # Start DNS server (required for portal routing)
+        chmod +x ./scripts/ensure-venv.sh
+        ./scripts/ensure-venv.sh
         chmod +x ./scripts/start-dns.sh
         ./scripts/start-dns.sh
         

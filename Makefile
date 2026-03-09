@@ -87,6 +87,7 @@ ensure-portal-built: ./dist/portal
 
 portal-plugins.yaml:
 	@./scripts/create-plugin-manifest.sh
+
 setup-env: recreate-mysql
 	@echo "Generating environment variables..."
 	@./scripts/setup-env.sh mysql false
