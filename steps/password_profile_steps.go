@@ -73,7 +73,9 @@ func (s *PasswordProfileSteps) theUserSubmitsRegistrationData(ctx context.Contex
 	}
 
 	api := helpers.GetUnauthenticatedClient()
-	err := api.Register(ctx, s.email, s.email, s.email, s.password)
+	firstName := helpers.GenerateFirstName()
+	lastName := helpers.GenerateLastName()
+	err := api.Register(ctx, s.email, firstName, lastName, s.password)
 	// Store the error in context for verification
 	ctx = helpers.SetRegistrationError(ctx, err)
 	return ctx, nil

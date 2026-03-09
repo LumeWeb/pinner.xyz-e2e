@@ -5,7 +5,7 @@ Feature: API Key Security and Management
 
   @api-key-unique-across-users
   Scenario: API keys are unique across different users
-    Given two registered users with the same API key name
+    Given two registered users
     When each user creates an API key named "my-api-key"
     Then both users receive different API key tokens
     And each user can only access their own API keys

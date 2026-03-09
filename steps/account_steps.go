@@ -83,7 +83,7 @@ func (s *AccountSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the JWT token can no longer be used for authenticated requests$`, s.theJWTTokenCanNoLongerBeUsedForAuthenticatedRequests)
 	ctx.Step(`^the user attempts to authenticate using the deleted API key$`, s.theUserAttemptsToAuthenticateUsingTheDeletedAPIKey)
 	ctx.Step(`^the user creates API keys named "([^"]*)" twice$`, s.theUserCreatesAPIKeysNamedTwice)
-	ctx.Step(`^two registered users with the same API key name$`, s.twoRegisteredUsersWithTheSameAPIKeyName)
+	ctx.Step(`^two registered users$`, s.twoRegisteredUsers)
 }
 
 func (s *AccountSteps) anExistingRegisteredUser(ctx context.Context) (context.Context, error) {
@@ -297,40 +297,28 @@ func (s *AccountSteps) theUserCanNoLongerLogin(ctx context.Context) (context.Con
 // Advanced API key steps
 
 func (s *AccountSteps) anExistingRegisteredUserWithAPIKeys(ctx context.Context, key1, key2 string) (context.Context, error) {
-	// First register and login user
-	api := helpers.GetUnauthenticatedClient()
-	testUser := helpers.CreateTestUser()
-
-	err := api.Register(ctx, testUser.Email, testUser.FirstName, testUser.LastName, testUser.Password)
+	ctx, err := helpers.RegisterTestUser(ctx)
 	if err != nil {
-		return ctx, fmt.Errorf("failed to register user: %w", err)
+		return ctx, err
 	}
 
-	ctx = helpers.AddTestUserCleanup(ctx, testUser.Email)
-	ctx = helpers.SetTestUser(ctx, testUser)
-
-	// Login to get JWT
-	loginResult, err := api.Login(ctx, testUser.Email, testUser.Password)
+	ctx, err = helpers.LoginTestUser(ctx)
 	if err != nil {
-		return ctx, fmt.Errorf("failed to login: %w", err)
+		return ctx, err
 	}
 
-	authClient := account.NewClient(
-		account.WithJWT(loginResult.Token),
-		account.WithEndpoint(helpers.GetPortalEndpoint()),
-		account.WithHostOverride(helpers.GetPortalHost(), helpers.GetPortalTarget()),
-	)
-	ctx = helpers.SetAuthenticatedClient(ctx, authClient)
+	api, err := helpers.RequireAuthenticatedClient(ctx)
+	if err != nil {
+		return ctx, err
+	}
 
-	// Create first API key
-	apiKey1, _ := authClient.CreateAPIKey(ctx, key1)
+	apiKey1, _ := api.CreateAPIKey(ctx, key1)
 	if apiKey1 != nil {
 		ctx = helpers.SetAPIKeyUUID(ctx, apiKey1.Uuid.String())
 		ctx = helpers.AddAPIKeyUUIDCleanup(ctx, apiKey1.Uuid.String())
 	}
 
-	// Create second API key
-	apiKey2, _ := authClient.CreateAPIKey(ctx, key2)
+	apiKey2, _ := api.CreateAPIKey(ctx, key2)
 	if apiKey2 != nil {
 		ctx = helpers.AddAPIKeyUUIDCleanup(ctx, apiKey2.Uuid.String())
 	}
@@ -683,7 +671,7 @@ func (s *AccountSteps) theUserCreatesAPIKeysNamedTwice(ctx context.Context, name
 	return ctx, nil
 }
 
-func (s *AccountSteps) twoRegisteredUsersWithTheSameAPIKeyName(ctx context.Context) (context.Context, error) {
+func (s *AccountSteps) twoRegisteredUsers(ctx context.Context) (context.Context, error) {
 	// Create first user
 	user1 := helpers.CreateTestUser()
 	api := helpers.GetUnauthenticatedClient()

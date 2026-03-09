@@ -45,3 +45,8 @@ else
   
   echo "[OK] Environment loaded"
 fi
+
+# Set default test configuration if not already set
+if [ -z "${TEST_INVALID_TOKEN:-}" ]; then
+  export TEST_INVALID_TOKEN="invalid-token-12345678901234567890"
+fi
