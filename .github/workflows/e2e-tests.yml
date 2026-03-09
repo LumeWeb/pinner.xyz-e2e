@@ -22,7 +22,9 @@ jobs:
         submodules: true
     
     - name: Create Plugin Manifest
-      run: ./scripts/create-plugin-manifest.sh
+      run: |
+        chmod +x ./scripts/create-plugin-manifest.sh
+        ./scripts/create-plugin-manifest.sh
     
     - name: Build Portal
       uses: addnab/docker-run-action@v3
@@ -99,6 +101,7 @@ jobs:
     
     - name: Start Portal
       uses: ./.github/actions/start-portal
+      id: portal
     
     - name: Wait for Portal
       run: |
@@ -113,7 +116,7 @@ jobs:
     - name: Portal Logs
       if: always()
       run: |
-        if [ -f .portal.log ]; then
+        if [ -f ${{ steps.portal.outputs.log_file }} ]; then
           echo "=== Portal Logs ==="
-          cat .portal.log || true
+          cat ${{ steps.portal.outputs.log_file }} || true
         fi

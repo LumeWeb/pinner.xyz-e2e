@@ -1,13 +1,24 @@
 name: 'Start Portal'
 description: 'Start the portal binary in background for E2E testing'
 
+inputs:
+  log_file:
+    description: 'Path to log file'
+    required: false
+    default: '.portal.log'
+
+outputs:
+  log_file:
+    description: 'Path to log file'
+    value: ${{ inputs.log_file }}
+
 runs:
   using: 'composite'
   steps:
     - name: Start Portal
       shell: bash
       env:
-        QUIET: ${{ runner.debug != 'true' && '1' || '0' }}
+        QUIET: ${{ runner.debug == '1' && '0' || '1' }}
       run: |
         # Ensure portal is in the expected location
         if [ ! -f "./portal" ] && [ -f "./dist/portal" ]; then
@@ -21,4 +32,4 @@ runs:
         
         # Start portal in background with logging (PORTAL_PORT from .env or default to 8080)
         chmod +x ./scripts/start-portal.sh
-        /bin/bash ./scripts/start-portal.sh .portal.log
+        /bin/bash ./scripts/start-portal.sh ${{ inputs.log_file }}
