@@ -139,6 +139,7 @@ class DynamicDNSServer:
     
     def forward_to_upstream(self, request_data):
         """Forward query to upstream DNS server."""
+        upstream_socket = None
         try:
             # Create socket for upstream DNS
             upstream_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -148,11 +149,13 @@ class DynamicDNSServer:
             upstream_socket.sendto(request_data, (self.upstream_dns, 53))
             response_data, _ = upstream_socket.recvfrom(1024)
             
-            upstream_socket.close()
             return response_data
         except Exception as e:
             print(f"Error forwarding to upstream DNS: {e}", file=sys.stderr)
             return None
+        finally:
+            if upstream_socket:
+                upstream_socket.close()
     
     def handle_query(self, data, addr):
         """Handle incoming DNS query."""

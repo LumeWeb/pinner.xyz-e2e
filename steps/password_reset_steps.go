@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/cucumber/godog"
@@ -173,7 +174,7 @@ func (s *PasswordResetSteps) userAttemptsResetWithInvalidToken(ctx context.Conte
 	api := helpers.GetUnauthenticatedClient()
 
 	// Try to reset password with invalid token
-	err = api.ConfirmPasswordReset(ctx, testUser.Email, "invalid-token-12345678901234567890", "InvalidPassword123!")
+	err = api.ConfirmPasswordReset(ctx, testUser.Email, os.Getenv("TEST_INVALID_TOKEN"), "InvalidPassword123!")
 	if err == nil {
 		return ctx, fmt.Errorf("password reset with invalid token should have failed")
 	}
@@ -257,7 +258,7 @@ func (s *PasswordResetSteps) userAttemptsVerifyWithInvalidToken(ctx context.Cont
 	api := helpers.GetUnauthenticatedClient()
 
 	// Try to verify email with invalid token
-	err = api.VerifyEmail(ctx, testUser.Email, "invalid-token-12345678901234567890")
+	err = api.VerifyEmail(ctx, testUser.Email, os.Getenv("TEST_INVALID_TOKEN"))
 	if err == nil {
 		return ctx, fmt.Errorf("email verification with invalid token should have failed")
 	}
