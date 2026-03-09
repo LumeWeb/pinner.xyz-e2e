@@ -31,6 +31,8 @@ runs:
         ./scripts/wait-mysql.sh
         
         # Start DNS server (required for portal routing)
+        chmod +x ./scripts/ensure-venv.sh
+        ./scripts/ensure-venv.sh
         chmod +x ./scripts/start-dns.sh
         ./scripts/start-dns.sh
         
