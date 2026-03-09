@@ -19,16 +19,6 @@ func NewAuthSteps() *AuthSteps {
 	return &AuthSteps{}
 }
 
-// BeforeScenarioHook runs before each scenario to initialize test data and cleanup tracking
-func (s *AuthSteps) BeforeScenarioHook(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-	return ctx, nil
-}
-
-// AfterScenarioHook runs after each scenario to clean up created resources
-func (s *AuthSteps) AfterScenarioHook(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-	return ctx, err
-}
-
 // InitializeScenario registers all step definitions with godog
 func (s *AuthSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	helpers.RegisterCommonHooks(ctx)

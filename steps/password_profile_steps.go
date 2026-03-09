@@ -11,8 +11,7 @@ import (
 
 // PasswordProfileSteps provides step definitions for password validation and profile management
 type PasswordProfileSteps struct {
-	email    string
-	password string
+	// No struct fields - all state in context for proper isolation
 }
 
 // NewPasswordProfileSteps creates a new PasswordProfileSteps instance
@@ -55,27 +54,29 @@ func (s *PasswordProfileSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 // Steps for registration with weak/invalid data
 
 func (s *PasswordProfileSteps) aNewUserRegistrationAttemptWithPassword(ctx context.Context, password string) (context.Context, error) {
-	s.password = password
+	ctx = helpers.SetRegistrationPassword(ctx, password)
 	return ctx, nil
 }
 
 func (s *PasswordProfileSteps) aNewUserRegistrationAttemptWithEmail(ctx context.Context, email string) (context.Context, error) {
-	s.email = email
+	ctx = helpers.SetRegistrationEmail(ctx, email)
 	return ctx, nil
 }
 
 func (s *PasswordProfileSteps) theUserSubmitsRegistrationData(ctx context.Context) (context.Context, error) {
-	if s.email == "" {
-		s.email = helpers.CreateTestUser().Email
+	email, hasEmail := helpers.GetRegistrationEmail(ctx)
+	if !hasEmail || email == "" {
+		email = helpers.CreateTestUser().Email
 	}
-	if s.password == "" {
-		s.password = helpers.CreateTestUser().Password
+	password, hasPassword := helpers.GetRegistrationPassword(ctx)
+	if !hasPassword || password == "" {
+		password = helpers.CreateTestUser().Password
 	}
 
 	api := helpers.GetUnauthenticatedClient()
 	firstName := helpers.GenerateFirstName()
 	lastName := helpers.GenerateLastName()
-	err := api.Register(ctx, s.email, firstName, lastName, s.password)
+	err := api.Register(ctx, email, firstName, lastName, password)
 	// Store the error in context for verification
 	ctx = helpers.SetRegistrationError(ctx, err)
 	return ctx, nil
@@ -192,8 +193,18 @@ func (s *PasswordProfileSteps) passwordChangeFailsValidation(ctx context.Context
 // Steps for logout
 
 func (s *PasswordProfileSteps) userLogsOut(ctx context.Context) (context.Context, error) {
-	// Clear the JWT and authenticated client from context
-	// Server-side session invalidation is handled automatically when JWT expires
+	// Note: The portal SDK does not currently have a Logout method, which is expected
+	// for stateless JWT systems. With stateless JWTs, logout is a client-side operation
+	// that clears the token from local storage. The JWT remains valid until its expiration
+	// time but is no longer used by the client.
+	//
+	// For the portal to support server-side session invalidation, it would need to:
+	// 1. Implement a token revocation list/blacklist
+	// 2. Or maintain session state alongside JWTs
+	//
+	// Since the portal uses stateless JWTs, logout only clears local state.
+
+	// Clear local context tokens after logout
 	ctx = context.WithValue(ctx, helpers.JWTTokenKey, "")
 	ctx = context.WithValue(ctx, helpers.AuthenticatedClientKey, nil)
 
