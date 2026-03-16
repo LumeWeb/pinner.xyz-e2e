@@ -2,3 +2,7 @@
 
 [branches]
 main = "develop"
+
+# Disable auto-sync to prevent overwriting local work during branch switches
+[sync]
+auto = false

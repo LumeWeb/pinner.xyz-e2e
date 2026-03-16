@@ -30,3 +30,11 @@ core.mail:
 core.storage.sia:
   url: ""
   key: ""
+
+# S3 configuration for gofakes3 mock service
+core.storage.s3:
+  buffer_bucket: "fakebucket"
+  endpoint: "http://localhost:9000"
+  region: "us-east-1"
+  access_key: "FAKEACCESSKEY"
+  secret_key: "FAKESECRETKEY"

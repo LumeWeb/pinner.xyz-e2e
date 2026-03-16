@@ -107,6 +107,29 @@ make clean           # Clean up all resources
 
 This ensures consistent configuration across local and CI/CD environments.
 
+### Configurable Timeouts
+
+Several scripts support configurable timeout values:
+
+**Environment Variable Configuration:**
+- **`GOFAKES3_WAIT_TIMEOUT`** - Timeout for `wait-gofakes3.sh` (default: 30 seconds)
+- **`PORTAL_WAIT_TIMEOUT`** - Timeout for `wait-portal.sh` (default: 30 seconds)
+- **`MYSQL_WAIT_TIMEOUT`** - Timeout for `wait-mysql.sh` (default: 30 seconds)
+
+**Argument-based Configuration:**
+- **`wait-ipfs.sh [timeout_seconds]`** - Timeout for IPFS service readiness (default: 30 seconds)
+
+Example:
+```bash
+# Use custom timeout via environment variable
+GOFAKES3_WAIT_TIMEOUT=60 ./scripts/wait-gofakes3.sh
+PORTAL_WAIT_TIMEOUT=60 ./scripts/wait-portal.sh
+MYSQL_WAIT_TIMEOUT=60 ./scripts/wait-mysql.sh
+
+# Use custom timeout via argument
+./scripts/wait-ipfs.sh 60
+```
+
 ## Manual Testing Steps
 
 1. ```bash
@@ -129,6 +152,51 @@ This ensures consistent configuration across local and CI/CD environments.
    ```
 
 ## Running E2E Tests
+
+### IPFS E2E Features
+
+The E2E test suite includes comprehensive IPFS coverage for upload, pinning, and content management:
+
+**Feature Files:**
+- `features/ipfs_upload.feature` - Tests IPFS upload functionality:
+  - Upload small files (< 100MB) via direct upload
+  - Upload large files (100MB+) via TUS resumable protocol
+  - Upload directories with multiple files
+
+- `features/ipfs_pinning.feature` - Tests IPFS pinning operations:
+  - Pin existing CIDs to IPFS
+  - Track pin status changes (queued, pinning, pinned, failed)
+  - Pin multiple CIDs with size estimates
+  - List pins with filtering capabilities
+
+- `features/ipfs_content_list.feature` - Tests IPFS content management:
+  - List uploaded content by CID
+  - Filter content by various criteria
+  - Verify content persistence across operations
+
+**Step Definitions:**
+- `steps/ipfs_common_steps.go` - Shared IPFS wait/verification steps
+- `steps/ipfs_upload_steps.go` - Upload-specific test logic
+- `steps/ipfs_pinning_steps.go` - Pinning-specific test logic
+- `steps/ipfs_content_list_steps.go` - Content list/filtering test logic
+
+**Supporting Helpers:**
+- `helpers/ipfs_common.go` - IPFS context management
+- `helpers/ipfs_upload.go` - Upload test utilities
+- `helpers/portal_pinning.go` - Portal pinning API integration
+- `helpers/kubo_api.go` - Kubo (IPFS node) API helpers for peer ID and bootstrap
+- `helpers/ipfs_validation.go` - Content integrity validation
+- `helpers/compliance_helpers.sh` - Compliance test orchestration
+- `helpers/logging.go` - Structured logging utilities
+- `helpers/panic_recovery.go` - Panic recovery for test isolation
+
+**Supporting Scripts:**
+- `scripts/wait-ipfs.sh` - Wait for IPFS service readiness
+- `scripts/get-kubo-peer-id.sh` - Retrieve Kubo node peer ID
+- `scripts/setup-kubo-bootstrap.sh` - Configure Kubo bootstrap peers
+- `scripts/run-compliance-tests.sh` - Run Pinning Service API compliance tests
+- `scripts/setup-compliance.sh` - Setup compliance test environment
+- `scripts/validate-compliance-setup.sh` - Validate compliance prerequisites
 
 ### Using the Test Runner
 
@@ -156,6 +224,62 @@ The e2e tests use godog (Cucumber for Go):
 - `helpers/` - Shared test utilities
 
 Each scenario must have a unique tag for individual execution.
+
+### IPFS Compliance Testing
+
+The e2e test suite includes IPFS spec compliance testing using the `@ipfs-shipyard/pinning-service-compliance` npm package.
+
+```bash
+# Run compliance tests only (requires running portal)
+make test-compliance
+
+# Run full test cycle including compliance
+make test
+
+# Skip compliance tests
+NO_COMPLIANCE=true make test
+```
+
+**Compliance test execution:**
+- Runs AFTER godog BDD tests complete
+- Creates fresh test user and API key via portal API
+- Tests IPFS Pinning Service API spec compliance
+- Parses JSON report and reports pass/fail status
+- Requires Node.js/npx availability
+
+**Environment variables:**
+- `COMPLIANCE_DEBUG` - Enable debug mode (default: false)
+- `NO_COMPLIANCE` - Skip compliance tests (default: false)
+- `PORTAL_PORT` - Portal HTTP port (default: 8080)
+
+**Validation:**
+Run the validation script to check setup prerequisites:
+```bash
+./scripts/validate-compliance-setup.sh
+```
+
+### Kubo IPFS Node Integration
+
+The E2E test suite includes integration with a local Kubo (IPFS) node for advanced IPFS testing:
+
+**Kubo Setup Scripts:**
+- `scripts/get-kubo-peer-id.sh` - Retrieves the Kubo node's peer ID
+- `scripts/setup-kubo-bootstrap.sh` - Configures bootstrap peers for Kubo
+
+**Kubo Helper Functions:**
+- `helpers/kubo_api.go` - Go helpers for Kubo API interactions:
+  - Peer ID retrieval
+  - Bootstrap configuration
+  - Node status checks
+
+**Usage:**
+```bash
+# Get peer ID from Kubo
+./scripts/get-kubo-peer-id.sh
+
+# Setup bootstrap peers
+./scripts/setup-kubo-bootstrap.sh
+```
 
 ## CI/CD
 

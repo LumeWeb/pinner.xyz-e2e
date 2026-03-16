@@ -29,6 +29,8 @@ func GetEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+
+
 // GetPortalName returns the portal name from environment
 func GetPortalName() string {
 	return GetEnv("PORTAL__CORE__PORTAL_NAME", "test-portal")
@@ -65,98 +67,187 @@ func RegisterCommonHooks(ctx *godog.ScenarioContext) {
 }
 
 // beforeScenarioSetup initializes cleanup tracking for each scenario
+// This ensures scenarios start clean and resources are properly tracked for cleanup
 func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-	// Initialize empty cleanup lists for this scenario
+	panicHandler := NewPanicHandler("").WithName("beforeScenarioSetup")
+	if sc != nil {
+		panicHandler.scenarioName = sc.Name
+	}
+	var recoveredErr error
+	defer panicHandler.RecoverFromPanic(&recoveredErr)
+
+	if sc == nil {
+		ctx = context.WithValue(ctx, APIKeyUUIDsCleanupKey, []string{})
+		ctx = context.WithValue(ctx, TestUsersCleanupKey, []string{})
+		ctx = context.WithValue(ctx, OperationsCleanupKey, []string{})
+		ctx = context.WithValue(ctx, PinRequestIDsCleanupKey, []string{})
+		return ctx, nil
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	logger := NewLogger(sc.Name)
+
 	ctx = context.WithValue(ctx, APIKeyUUIDsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, TestUsersCleanupKey, []string{})
 	ctx = context.WithValue(ctx, OperationsCleanupKey, []string{})
-	
-	// Clear authenticated client to ensure each scenario starts with fresh auth state,
-	// unless the scenario is tagged with @noAuthReset to preserve auth across scenarios
-	// NOTE: JWT token is preserved in context so cleanup can recreate authenticated client
+	ctx = context.WithValue(ctx, PinRequestIDsCleanupKey, []string{})
+
+	token, ok := GetJWTToken(ctx)
+
 	hasNoAuthReset := false
-	for _, tag := range sc.Tags {
-		if tag.Name == TagNoAuthReset {
-			hasNoAuthReset = true
-			break
+	if sc.Tags != nil {
+		for _, tag := range sc.Tags {
+			if tag != nil && tag.Name == TagNoAuthReset {
+				hasNoAuthReset = true
+				break
+			}
 		}
 	}
-	
+
+	// Reset authenticated client unless @noAuthReset tag is present
+	// This prevents scenarios from leaking authentication state to each other
 	if !hasNoAuthReset {
 		ctx = context.WithValue(ctx, AuthenticatedClientKey, nil)
 	}
-	
+
+	// Clean up existing pins if JWT token is available
+	// This is necessary for test isolation when multiple scenarios run concurrently
+	if ok && token != "" {
+		if err := CleanupAllPinsForUser(ctx); err != nil {
+			logger.Warn(ctx, "Failed to cleanup existing pins: %v", err)
+		} else {
+			logger.Info(ctx, "Cleaned up existing pins for test isolation")
+		}
+	}
+
 	return ctx, nil
 }
 
 // afterScenarioCleanup performs cleanup after each scenario
+// Ensures all test resources (API keys, users, operations, IPFS pins) are cleaned up
 func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-	// Clean up API keys using their UUIDs
+	panicHandler := NewPanicHandler("").WithName("afterScenarioCleanup")
+	if sc != nil {
+		panicHandler.scenarioName = sc.Name
+	}
+	defer panicHandler.RecoverFromPanic(&err)
+	returnErr := err
+
+	if ctx == nil {
+		return ctx, err
+	}
+
+	if sc == nil {
+		return ctx, err
+	}
+
+	// Clean up API keys created during the scenario
 	apiKeysToDelete := GetAPIKeyUUIDsCleanup(ctx)
-	for _, uuid := range apiKeysToDelete {
-		if deleteErr := DeleteAPIKeyGracefully(ctx, uuid); deleteErr != nil {
-			fmt.Printf("Warning: failed to delete API key %s: %v\n", uuid, deleteErr)
+	if len(apiKeysToDelete) > 0 {
+		for _, uuid := range apiKeysToDelete {
+			if deleteErr := DeleteAPIKeyGracefully(ctx, uuid); deleteErr != nil {
+				fmt.Printf("Warning: failed to delete API key %s: %v\n", uuid, deleteErr)
+			}
 		}
 	}
 
-	// Clean up test users
+	// Clean up test users created during the scenario
 	testUsersToDelete := GetTestUsersCleanup(ctx)
-	for _, email := range testUsersToDelete {
-		if deleteErr := DeleteTestUserGracefully(ctx, email); deleteErr != nil {
-			fmt.Printf("Warning: failed to delete test user %s: %v\n", email, deleteErr)
+	if len(testUsersToDelete) > 0 {
+		for _, email := range testUsersToDelete {
+			if deleteErr := DeleteTestUserGracefully(ctx, email); deleteErr != nil {
+				fmt.Printf("Warning: failed to delete test user %s: %v\n", email, deleteErr)
+			}
 		}
 	}
 
-	// Clean up operations (if needed in the future)
 	operationIDs := GetOperationsCleanup(ctx)
 	for _, idStr := range operationIDs {
 		fmt.Printf("Info: operation %s cleanup tracking\n", idStr)
 	}
 
-	// Return the original scenario error to preserve test failures
-	return ctx, err
+	// Clean up IPFS assets created during the scenario
+	cleanupIPFSAssets(ctx)
+
+	return ctx, returnErr
+}
+
+// getPortalConfig retrieves common portal configuration values
+type portalConfig struct {
+	domain string
+	port   string
+	secure string
+}
+
+func getPortalConfig() portalConfig {
+	return portalConfig{
+		domain: GetEnv("PORTAL__CORE__DOMAIN", ""),
+		port:   GetEnv("PORTAL__CORE__PORT", "8080"),
+		secure: GetEnv("PORTAL__CORE__SECURE", "false"),
+	}
+}
+
+// buildHost returns a formatted host string
+// If subdomain is provided, returns subdomain.domain:port
+// If subdomain is empty, returns domain:port
+func buildHost(subdomain string) string {
+	cfg := getPortalConfig()
+	if subdomain != "" {
+		return fmt.Sprintf("%s.%s:%s", subdomain, cfg.domain, cfg.port)
+	}
+	return fmt.Sprintf("%s:%s", cfg.domain, cfg.port)
 }
 
 // GetPortalHost returns the vhost hostname for the portal API (for Host header)
 func GetPortalHost() string {
-	domain := GetEnv("PORTAL__CORE__DOMAIN", "")
-	port := GetEnv("PORTAL__CORE__PORT", "8080")
-	return fmt.Sprintf("account.%s:%s", domain, port)
+	return buildHost("account")
+}
+
+// GetIPFSHost returns the vhost hostname for the IPFS API (for Host header)
+func GetIPFSHost() string {
+	return buildHost("ipfs")
 }
 
 // GetPortalTarget returns the target address for the portal API (actual connection target)
 // Returns just host:port without protocol for WithHostOverride (e.g., "localhost:8080")
 func GetPortalTarget() string {
-	domain := GetEnv("PORTAL__CORE__DOMAIN", "")
-	port := GetEnv("PORTAL__CORE__PORT", "8080")
-	return fmt.Sprintf("%s:%s", domain, port)
+	return buildHost("")
+}
+
+// buildEndpoint creates an endpoint URL for a given subdomain
+// subdomain is the portal subdomain (e.g., "account", "ipfs")
+// includePort determines whether to include the port number
+func buildEndpoint(subdomain string, includePort bool) string {
+	cfg := getPortalConfig()
+
+	protocol := "http"
+	if cfg.secure == "true" || cfg.secure == "True" {
+		protocol = "https"
+	}
+
+	if includePort {
+		return fmt.Sprintf("%s://%s.%s:%s", protocol, subdomain, cfg.domain, cfg.port)
+	}
+	return fmt.Sprintf("%s://%s.%s", protocol, subdomain, cfg.domain)
 }
 
 // GetPortalEndpoint returns the full endpoint URL for the portal API
 func GetPortalEndpoint() string {
-	secure := GetEnv("PORTAL__CORE__SECURE", "false")
-	domain := GetEnv("PORTAL__CORE__DOMAIN", "")
-	port := GetEnv("PORTAL__CORE__PORT", "8080")
-	
-	protocol := "http"
-	if secure == "true" || secure == "True" {
-		protocol = "https"
-	}
-	
-	return fmt.Sprintf("%s://account.%s:%s", protocol, domain, port)
+	return buildEndpoint("account", true)
+}
+
+// GetIPFSEndpoint returns the base URL for the IPFS API without /api suffix
+// The SDK will add /api/... paths to this base URL when making requests
+func GetIPFSEndpoint() string {
+	return buildEndpoint("ipfs", true)
 }
 
 // GetPortalServer returns the server hostname for SDK endpoint configuration
 func GetPortalServer() string {
-	secure := GetEnv("PORTAL__CORE__SECURE", "false")
-	domain := GetEnv("PORTAL__CORE__DOMAIN", "")
-	
-	protocol := "http"
-	if secure == "true" || secure == "True" {
-		protocol = "https"
-	}
-	
-	return fmt.Sprintf("%s://account.%s", protocol, domain)
+	return buildEndpoint("account", false)
 }
 
 // GetUnauthenticatedClient returns an API client without authentication
@@ -201,25 +292,19 @@ func RequireTestUser(ctx context.Context) (*TestUser, error) {
 }
 
 // createNewAuthenticatedClient creates a new authenticated client with the given JWT token.
-// This is a legacy function kept for backward compatibility.
-// Prefer using the client stored in context via GetAuthenticatedClientFromContext.
-func createNewAuthenticatedClient(token string) account.AccountAPI {
-	return CreateAuthenticatedClient(token)
-}
-
 // GetAuthenticatedClientFromContext retrieves the shared authenticated client from context
 func GetAuthenticatedClientFromContext(ctx context.Context) account.AccountAPI {
 	client, ok := GetAuthenticatedClient(ctx)
 	if ok && client != nil {
 		return client
 	}
-	
+
 	// Fallback: create new client with JWT token
 	token, hasToken := GetJWTToken(ctx)
 	if !hasToken || token == "" {
 		return nil
 	}
-	
+
 	return CreateAuthenticatedClient(token)
 }
 
@@ -252,13 +337,13 @@ func RegisterTestUser(ctx context.Context) (context.Context, error) {
 }
 
 // LoginTestUser authenticates a test user and stores JWT token in context
+// Handles both password-only and 2FA authentication flows
 func LoginTestUser(ctx context.Context) (context.Context, error) {
 	testUser, ok := GetTestUser(ctx)
 	if !ok {
 		return ctx, fmt.Errorf("no test user available")
 	}
 
-	// First login without JWT to get the token
 	api := GetUnauthenticatedClient()
 	loginResult, err := api.Login(ctx, testUser.Email, testUser.Password)
 	if err != nil {
@@ -269,36 +354,33 @@ func LoginTestUser(ctx context.Context) (context.Context, error) {
 		return ctx, fmt.Errorf("login did not return a token")
 	}
 
-	// If 2FA is enabled, we need to provide OTP verification to get the final token
+	// Handle 2FA verification if required
+	// This ensures tests support both 2FA-enabled and 2FA-disabled accounts
 	if loginResult.OTPRequired {
 		otpSecret, hasSecret := GetOTPSecret(ctx)
 		if !hasSecret {
 			return ctx, fmt.Errorf("OTP required but no OTP secret available in context")
 		}
-		
-		// Generate a valid TOTP code
+
 		otpCode, err := GenerateValidTOTPCode(otpSecret)
 		if err != nil {
 			return ctx, fmt.Errorf("failed to generate TOTP code: %w", err)
 		}
-		
-		// Verify OTP to get the final authenticated token
+
 		loginAPI := GetUnauthenticatedClient()
 		finalToken, err := loginAPI.ValidateOTP(ctx, loginResult.Token, otpCode)
 		if err != nil {
 			return ctx, fmt.Errorf("failed to validate OTP: %w", err)
 		}
-		
+
 		if finalToken == "" {
 			return ctx, fmt.Errorf("OTP verification did not return a token")
 		}
-		
-		// Use the final authenticated token
+
 		loginResult.Token = finalToken
 	}
 
-	// Create authenticated client with JWT token
-	// The portal accepts JWT tokens via Authorization header
+	// Store authenticated client and JWT token for use by subsequent steps
 	authClient := CreateAuthenticatedClient(loginResult.Token)
 	ctx = SetJWTToken(ctx, loginResult.Token)
 	ctx = SetAuthenticatedClient(ctx, authClient)
@@ -314,7 +396,6 @@ func RegisterAndLoginTestUser(ctx context.Context) (context.Context, error) {
 
 	return LoginTestUser(ctx)
 }
-
 
 // isAPIKeyNotFoundError checks if the error is a 404 "record not found" error
 // which indicates the API key was already deleted or never existed
@@ -338,7 +419,7 @@ func isAccountConflictError(err error) bool {
 // DeleteAPIKeyGracefully attempts to delete an API key and ignores 404 errors
 func DeleteAPIKeyGracefully(ctx context.Context, keyUUID string) error {
 	api := GetAuthenticatedClientFromContext(ctx)
-	
+
 	// If no authenticated client, skip cleanup - no API keys were created in this scenario
 	if api == nil {
 		return nil
@@ -358,7 +439,7 @@ func DeleteAPIKeyGracefully(ctx context.Context, keyUUID string) error {
 // DeleteTestUserGracefully attempts to delete a test user and ignores 409 conflicts
 func DeleteTestUserGracefully(ctx context.Context, email string) error {
 	api := GetAuthenticatedClientFromContext(ctx)
-	
+
 	// If no authenticated client, skip cleanup - no test users were created in this scenario
 	if api == nil {
 		return nil
@@ -413,6 +494,36 @@ func CleanupTestUsers(ctx context.Context) {
 		if deleteErr := api.DeleteAccount(ctx); deleteErr != nil {
 			fmt.Printf("Warning: failed to delete test user %s: %v\n", email, deleteErr)
 		}
+	}
+}
+
+// cleanupIPFSAssets cleans up IPFS assets created during the scenario
+// cleanupIPFSAssets removes IPFS pins created during the scenario
+// Pins are removed to prevent accumulation across test runs
+func cleanupIPFSAssets(ctx context.Context) {
+	panicHandler := NewPanicHandler("cleanupIPFSAssets").WithName("cleanupIPFSAssets")
+	defer panicHandler.RecoverFromPanic(nil)
+
+	client, err := GetIPFSClient(ctx)
+	if err != nil {
+		return
+	}
+
+	if client == nil {
+		return
+	}
+
+	pinRequestIDs := GetPinRequestIDsCleanup(ctx)
+	pinningAPI := client.Pinning()
+	if pinningAPI == nil {
+		return
+	}
+
+	// Remove all pins created during the scenario
+	// Errors are intentionally ignored here since we want to attempt cleanup
+	// even if some pins have already been deleted or don't exist
+	for _, requestID := range pinRequestIDs {
+		pinningAPI.RemovePin(ctx, requestID)
 	}
 }
 

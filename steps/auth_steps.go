@@ -21,8 +21,6 @@ func NewAuthSteps() *AuthSteps {
 
 // InitializeScenario registers all step definitions with godog
 func (s *AuthSteps) InitializeScenario(ctx *godog.ScenarioContext) {
-	helpers.RegisterCommonHooks(ctx)
-
 	// Registration steps
 	ctx.Step(`^a new user registration request$`, s.aNewUserRegistrationRequest)
 	ctx.Step(`^the user submits valid registration data$`, s.theUserSubmitsValidRegistrationData)
@@ -108,10 +106,14 @@ func (s *AuthSteps) theUserCanLoginWithTheRegisteredCredentials(ctx context.Cont
 
 // Login with email/password step implementations
 
+// anExistingRegisteredUser creates and registers a new test user
+// Used by scenarios that need a fresh user account before testing other features
 func (s *AuthSteps) anExistingRegisteredUser(ctx context.Context) (context.Context, error) {
 	return helpers.RegisterTestUser(ctx)
 }
 
+// theUserIsLoggedIn authenticates the test user and stores credentials in context
+// Ensures subsequent steps have access to authenticated API clients
 func (s *AuthSteps) theUserIsLoggedIn(ctx context.Context) (context.Context, error) {
 	return helpers.LoginTestUser(ctx)
 }

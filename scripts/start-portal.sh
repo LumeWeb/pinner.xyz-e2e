@@ -4,13 +4,16 @@
 set -euo pipefail
 
 # Start the portal binary in background with logging
+# By default, logs are written ONLY to the log file (not to the terminal).
+# Use VERBOSE=1 to see output in BOTH terminal and file.
+#
 # Usage: ./scripts/start-portal.sh [log-path]
 #
 # Arguments:
 #   log-path - Path to log file (default: .portal.log)
 #
 # Environment Variables:
-#   QUIET       - Set to 1 for silent mode (no stdout/stderr from portal)
+#   VERBOSE     - Set to 1 to also output to terminal (default: silent, logs to file only)
 #   LOGFILE     - Path to log file (overrides positional argument)
 #   PORTAL_PORT - Port to run portal on (default: 8080)
 
@@ -33,16 +36,39 @@ PORT="${PORTAL_PORT:-8080}"
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
+# Check if portal is already running
+if is_process_running .portal.pid; then
+  log_info "Portal already running (PID: $(cat .portal.pid))"
+  exit 0
+fi
+
+# Remove stale PID file if present
+if [ -f .portal.pid ]; then
+  log_warn "Removing stale portal PID file"
+  rm -f .portal.pid
+fi
+
 # Clean up stale portal configuration
 cleanup_portal_config
 
+log_info "Copying portal binary..."
+cp ./dist/portal ./portal
+chmod +x ./portal
+
+log_info "Waiting for services..."
+./scripts/wait-mysql.sh
+./scripts/wait-gofakes3.sh
+./scripts/wait-ipfs.sh
+
+log_info "Starting portal..."
+
 # Start portal in background with logging
-if [ "${QUIET:-0}" = "1" ]; then
-  # Silent mode - only log to file
-  PORTAL_PORT="${PORT}" ./portal >"${LOG_PATH}" 2>&1 &
-else
-  # Log to both file and terminal
+if [ "${VERBOSE:-0}" = "1" ]; then
+  # Log to both file and terminal (verbose mode)
   PORTAL_PORT="${PORT}" ./portal > >(tee "${LOG_PATH}") 2>&1 &
+else
+  # Silent mode - only log to file (default)
+  PORTAL_PORT="${PORT}" ./portal >"${LOG_PATH}" 2>&1 &
 fi
 
 PID=$!
@@ -56,4 +82,6 @@ fi
 # Save PID for later cleanup
 echo "$PID" > .portal.pid
 
-echo "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"
+sleep 3
+
+log_ok "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"

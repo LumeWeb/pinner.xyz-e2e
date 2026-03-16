@@ -31,6 +31,14 @@ def flatten_dict(d, parent_key='', sep='__', top_level=True):
     return dict(items)
 
 
+def format_value(value):
+    """Format value for environment variable output."""
+    if isinstance(value, list):
+        # Convert list to JSON array format for proper env parsing
+        return json.dumps(value)
+    return str(value)
+
+
 def yaml_to_env(yaml_file, output_file=None):
     """Read YAML file and convert to env vars."""
     with open(yaml_file, 'r') as f:
@@ -48,10 +56,24 @@ def yaml_to_env(yaml_file, output_file=None):
         # Portal expects PORTAL__ prefix for all env vars
         # Convert to uppercase and format
         env_key = key.upper()
-        # Convert value to string and quote it
-        env_value = str(value)
-        # Always quote values to ensure proper shell handling
-        env_value = f'"{env_value}"'
+        
+        # Convert value to appropriate format
+        if isinstance(value, list):
+            # Convert list to comma-separated string for array parsing
+            env_value = ','.join(str(item) for item in value)
+        elif isinstance(value, str):
+            # Quote string values
+            env_value = f'"{value}"'
+        elif isinstance(value, bool):
+            # Convert boolean to string
+            env_value = f'"{str(value).lower()}"'
+        elif value is None:
+            # Convert None to empty string
+            env_value = '""'
+        else:
+            # Convert other values to string
+            env_value = f'"{str(value)}"'
+        
         env_vars.append(f"export PORTAL__{env_key}={env_value}")
     
     # Output

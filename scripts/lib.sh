@@ -33,7 +33,7 @@ log_warn() {
 }
 
 log_info() {
-  echo "$*"
+  echo "$*" >&2
 }
 
 # Path resolution
@@ -225,10 +225,225 @@ cleanup_pid() {
 # Usage: cleanup_portal_config
 cleanup_portal_config() {
   log_info "Cleaning up stale configuration files..."
-  # Suppress stderr to handle permission errors gracefully (may not be root)
-  if rm -f /etc/lumeweb/portal/core.yaml "$HOME/.lumeweb/portal/core.yaml" ./core.yaml 2>/dev/null; then
-    log_ok "Configuration files cleaned"
-  else
-    log_info "Configuration cleanup skipped (non-writable)"
+  rm -rf /etc/lumeweb/portal "$HOME/.lumeweb/portal" ./core.yaml 2>/dev/null || true
+  log_ok "Configuration files cleaned"
+}
+
+# API call helpers
+# Usage: api_call <method> <url> <request_body> [extra_headers]
+# Returns: HTTP response
+# Example: api_call POST http://localhost:8080/api/auth/register '{"email":"test@example.com"}'
+api_call() {
+  local method="$1"
+  local url="$2"
+  local body="$3"
+  shift 3
+  local extra_headers=("$@")
+
+  local curl_args=(
+    -s
+    -X "$method"
+    -H "Content-Type: application/json"
+  )
+
+  # Add extra headers if provided
+  if [ ${#extra_headers[@]} -gt 0 ]; then
+    for header in "${extra_headers[@]}"; do
+      curl_args+=(-H "$header")
+    done
   fi
+
+  # Add body if provided
+  if [ -n "$body" ]; then
+    curl_args+=(-d "$body")
+  fi
+
+  curl_args+=("$url")
+  curl "${curl_args[@]}"
+}
+
+# API call with headers included in response
+# Usage: api_call_headers <method> <port> <path> <body> [extra_headers]
+# Returns: HTTP response including headers
+# Similar to api_call but includes headers using curl -i
+api_call_headers() {
+  local method="$1"
+  local port="$2"
+  local path="$3"
+  local body="$4"
+  shift 4
+  local extra_headers=("$@")
+  local url="http://localhost:${port}${path}"
+
+  local curl_args=(
+    -i
+    -X "$method"
+    -H "Content-Type: application/json"
+  )
+
+  # Add extra headers if provided
+  if [ ${#extra_headers[@]} -gt 0 ]; then
+    for header in "${extra_headers[@]}"; do
+      curl_args+=(-H "$header")
+    done
+  fi
+
+  # Add body if provided
+  if [ -n "$body" ]; then
+    curl_args+=(-d "$body")
+  fi
+
+  curl_args+=("$url")
+  curl "${curl_args[@]}"
+}
+
+# API call with account vhost header
+# Usage: api_call_account <method> <port> <path> <request_body> [extra_headers]
+# Returns: HTTP response
+# Example: api_call_account POST 8080 /api/auth/register '{"email":"test@example.com"}'
+api_call_account() {
+  local method="$1"
+  local port="$2"
+  local path="$3"
+  local body="$4"
+  shift 4
+  local extra_headers=("$@")
+
+  local url="http://localhost:${port}${path}"
+
+  api_call "$method" "$url" "$body" "Host: account.localhost:${port}" "${extra_headers[@]}"
+}
+
+# API call with account vhost header, includes response headers
+# Usage: api_call_account_headers <method> <port> <path> <request_body> [extra_headers]
+# Returns: HTTP response including headers
+# Similar to api_call_account but includes headers using curl -i
+api_call_account_headers() {
+  local method="$1"
+  local port="$2"
+  local path="$3"
+  local body="$4"
+  shift 4
+  local extra_headers=("$@")
+  local url="http://localhost:${port}${path}"
+
+  local curl_args=(
+    -i
+    -X "$method"
+    -H "Content-Type: application/json"
+    -H "Host: account.localhost:${port}"
+  )
+
+  # Add extra headers if provided
+  if [ ${#extra_headers[@]} -gt 0 ]; then
+    for header in "${extra_headers[@]}"; do
+      curl_args+=(-H "$header")
+    done
+  fi
+
+  # Add body if provided
+  if [ -n "$body" ]; then
+    curl_args+=(-d "$body")
+  fi
+
+  curl_args+=("$url")
+  curl "${curl_args[@]}"
+}
+
+# Check command availability
+# Usage: check_command <command>
+# Returns: 0 if available, 1 if not
+check_command() {
+  local cmd="$1"
+  if command -v "$cmd" &> /dev/null; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Require npm package is available
+# Usage: require_npm_package <package_name>
+# Returns: 0 if available, 1 if not
+require_npm_package() {
+  local package_name="$1"
+  if npm view "$package_name" version &> /dev/null; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Build JSON object using jq
+# Usage: json_build --arg name1 value1 --arg name2 value2 "{...jq_template...}"
+# Returns: JSON string
+# Example: json_build --arg email "test@example.com" --arg password "pass" '{email: $email, password: $password}'
+json_build() {
+  jq -n "$@"
+}
+
+# Extract field from JSON using jq
+# Usage: json_extract <json> <field>
+# Returns: Field value or empty string
+# Example: json_extract '{"token":"abc"}' '.token'
+json_extract() {
+  local json="$1"
+  local field="$2"
+  echo "$json" | jq -r "$field // empty"
+}
+
+# Validate token string from JSON response
+# Returns: 0 if token is valid, 1 if token is null/empty/invalid
+# Usage: is_valid_token "$token"
+is_valid_token() {
+  local token="$1"
+  [ -n "$token" ] && [ "$token" != "null" ] && [ "$token" != "empty" ]
+}
+
+# Check if current user is root
+# Returns: 0 if root, 1 if not
+is_root() {
+  [ "$(id -u)" -eq 0 ]
+}
+
+# Install npm package globally
+# Usage: install_npm_package_globally <package_name>
+# Returns: 0 on success, 1 on failure
+install_npm_package_globally() {
+  local package="$1"
+  
+  if check_command "npm"; then
+    log_info "Installing $package globally..."
+    npm install -g "$package"
+  else
+    log_info "npm command not found"
+    return 1
+  fi
+}
+
+# Get path to globally installed npm package
+# Handles both root and non-root installation paths
+# Usage: get_npm_package_path <package_name> [entry_point]
+# Default entry_point: dist/src/index.js
+# Returns: Path to package entry point or empty if not found
+get_npm_package_path() {
+  local package="$1"
+  local entry_point="${2:-dist/src/index.js}"
+  
+  # Try common global installation paths
+  local paths=(
+    "/usr/lib/node_modules/${package}/${entry_point}"
+    "/usr/local/lib/node_modules/${package}/${entry_point}"
+    "$HOME/.npm-global/lib/node_modules/${package}/${entry_point}"
+    "$HOME/.local/lib/node_modules/${package}/${entry_point}"
+  )
+  
+  for path in "${paths[@]}"; do
+    if [ -f "$path" ]; then
+      printf '%s' "$path"
+      return 0
+    fi
+  done
+  
+  return 1
 }
