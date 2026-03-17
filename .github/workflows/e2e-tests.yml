@@ -147,11 +147,13 @@ jobs:
         ./scripts/setup-kubo-bootstrap.sh
     
     - name: Run E2E Tests
+      id: run-e2e-tests
       run: |
         chmod +x ./scripts/run-tests.sh
         ./scripts/run-tests.sh
     
     - name: Run IPFS Compliance Tests
+      id: run-compliance-tests
       run: |
         chmod +x ./scripts/setup-compliance.sh
         chmod +x ./scripts/run-compliance-tests.sh
@@ -167,7 +169,17 @@ jobs:
         fi
     
     - name: Keep job alive for debugging
-      if: failure()
+      if: always()
       run: |
-        echo "Job failed. Keeping VM alive for 30 minutes..."
-        sleep 1800
+        # Don't sleep if tests failed
+        if [ "${{ steps.run-e2e-tests.outcome }}" == "failure" ] || \
+           [ "${{ steps.run-compliance-tests.outcome }}" == "failure" ]; then
+          echo "Tests failed, not sleeping for debugging"
+        elif [ "${{ steps.run-e2e-tests.outcome }}" == "skipped" ] || \
+               [ "${{ steps.run-compliance-tests.outcome }}" == "skipped" ]; then
+          echo "Tests skipped (setup failed), sleeping for debugging..."
+          sleep 1800
+        else
+          echo "Tests passed but job failed, sleeping for setup debugging..."
+          sleep 1800
+        fi
