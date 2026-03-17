@@ -16,7 +16,7 @@ if [ -z "${PORTAL_PORT:-}" ]; then
 fi
 
 PORT="${PORTAL_PORT:-8080}"
-TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT "$1")
+TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT "${1:-}")
 
 log_info "Waiting for HTTP endpoint to be available (plugins may take time to load)..."
 

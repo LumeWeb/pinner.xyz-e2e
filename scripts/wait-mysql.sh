@@ -15,7 +15,7 @@
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
-TIMEOUT=$(get_timeout 30 MYSQL_WAIT_TIMEOUT "$1")
+TIMEOUT=$(get_timeout 30 MYSQL_WAIT_TIMEOUT "${1:-}")
 
 log_info "Waiting for MySQL to be ready for connections..."
 
