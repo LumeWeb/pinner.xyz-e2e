@@ -132,7 +132,7 @@ require (
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/woodsbury/decimal128 v1.4.0 // indirect
 	go.lumeweb.com/gswagger v0.20.10 // indirect
-	go.lumeweb.com/ipfs-content v0.1.2 // indirect
+	go.lumeweb.com/ipfs-content v0.1.3 // indirect
 	go.lumeweb.com/portal v0.4.2-0.20251225165008-2bdb358c492d // indirect
 	go.lumeweb.com/portal-middleware v0.3.4 // indirect
 	go.lumeweb.com/portal-router v0.6.11 // indirect
