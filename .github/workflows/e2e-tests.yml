@@ -55,6 +55,7 @@ jobs:
         ports:
           - 3306:3306
         options: >-
+          --name mysql
           --health-cmd="mysqladmin ping"
           --health-interval=10s
           --health-timeout=5s
@@ -66,6 +67,7 @@ jobs:
           - 1025:1025
           - 1080:1080
         options: >-
+          --name maildev
           --health-cmd="wget --spider -q http://localhost:1080"
           --health-interval=10s
           --health-timeout=5s
@@ -80,6 +82,8 @@ jobs:
           GOF3_INITIAL_BUCKET: fakebucket
           GOF3_NO_INTEGRITY: "true"
           GOF3_QUIET: "true"
+        options: >-
+          --name gofakes3
       
       ipfs:
         image: ipfs/kubo:latest
@@ -88,6 +92,8 @@ jobs:
           - 5001:5001
         env:
           IPFS_PROFILE: "test"
+        options: >-
+          --name portal-ipfs
     
     steps:
     - name: Checkout Repo
