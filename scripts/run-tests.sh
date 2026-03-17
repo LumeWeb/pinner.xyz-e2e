@@ -27,16 +27,10 @@ set -euo pipefail
 . scripts/lib.sh
 
 # Source environment variables from .env
-log_info "Loading environment from .env..."
-# shellcheck disable=SC1091
-if [ -f .env ]; then
-    . scripts/load-env.sh
-else
+if ! load_portal_env; then
     log_error ".env file not found. Please run 'make setup-env' first."
     exit 1
 fi
-
-log_info "Environment loaded successfully"
 
 # Check if tests exist
 if [ ! -d "features" ]; then

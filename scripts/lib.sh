@@ -456,3 +456,130 @@ get_npm_package_path() {
   
   return 1
 }
+
+# Environment variable priority helper with fallback
+# Usage: get_timeout <default_seconds> <env_var_name> [positional_arg]
+# Checks environment variable first, then positional argument, then default
+# Returns: Timeout value in seconds
+get_timeout() {
+  local default="$1"
+  local env_var_name="$2"
+  local positional="${3:-}"
+  
+  if [ -n "$env_var_name" ] && [ -n "${!env_var_name:-}" ]; then
+    echo "${!env_var_name}"
+  elif [ -n "$positional" ]; then
+    echo "$positional"
+  else
+    echo "$default"
+  fi
+}
+
+# Setup log file path with environment and argument fallback
+# Usage: setup_log_path <default_path> [env_var_name] [positional_arg]
+# Checks environment variable first, then positional argument, then default
+# Returns: Log file path
+setup_log_path() {
+  local default="$1"
+  local env_var_name="${2:-LOGFILE}"
+  local positional="${3:-}"
+  
+  if [ -n "${!env_var_name:-}" ]; then
+    echo "${!env_var_name}"
+  elif [ -n "$positional" ]; then
+    echo "$positional"
+  else
+    echo "$default"
+  fi
+}
+
+# Wait for HTTP endpoint health check
+# Usage: wait_for_health_check <port> <path> <timeout> [interval]
+# Returns: 0 on success, 1 on timeout
+wait_for_health_check() {
+  local port="$1"
+  local path="${2:-/health}"
+  local timeout="${3:-10}"
+  local interval="${4:-1}"
+  local counter=0
+  
+  while [ "$counter" -lt "$timeout" ]; do
+    if curl -sf "http://localhost:${port}${path}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$interval"
+    counter=$((counter + interval))
+  done
+  return 1
+}
+
+# Load portal environment variables
+# Usage: load_portal_env [quiet]
+# If 'quiet' is passed as first argument, suppresses all output
+# Returns: 0 on success, 1 on failure
+load_portal_env() {
+  local quiet="${1:-}"
+  
+  if [ "$quiet" = "quiet" ]; then
+    set -a
+    if [ -f .env ]; then
+      # shellcheck disable=SC1091
+      QUIET=1 . scripts/load-env.sh
+    fi
+    set +a
+  else
+    # shellcheck disable=SC1091
+    . scripts/lib.sh
+    log_info "Loading environment from .env..."
+    if [ -f .env ]; then
+      # shellcheck disable=SC1091
+      . scripts/load-env.sh
+      log_ok "Environment loaded successfully"
+      return 0
+    else
+      log_error ".env file not found"
+      return 1
+    fi
+  fi
+}
+
+# Add export line to environment file
+# Usage: export_env <file> <var_name> <value>
+# Safely exports variable to file with proper escaping
+export_env() {
+  local file="$1"
+  local var_name="$2"
+  local value="$3"
+  
+  # Escape special characters in value
+  local escaped_value
+  escaped_value=$(printf '%s' "$value" | sed 's/["\\]/\\&/g')
+  
+  echo "export ${var_name}=\"${escaped_value}\"" >> "$file"
+}
+
+# Wait for HTTP endpoint health check with pid verification
+# Usage: wait_for_health_check_with_pid <port> <path> <timeout> <interval> [pid]
+# If pid is provided, also checks if process is still alive
+# Returns: 0 on success, 1 on timeout or process death
+wait_for_health_check_with_pid() {
+  local port="$1"
+  local path="${2:-/health}"
+  local timeout="${3:-10}"
+  local interval="${4:-1}"
+  local pid="${5:-}"
+  local counter=0
+  
+  while [ "$counter" -lt "$timeout" ]; do
+    # Check if provided PID is still alive
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+      return 2
+    fi
+    if curl -sf "http://localhost:${port}${path}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$interval"
+    counter=$((counter + interval))
+  done
+  return 1
+}

@@ -9,8 +9,7 @@
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
-# Use environment variable or positional argument or default to 30
-TIMEOUT="${GOFAKES3_WAIT_TIMEOUT:-${1:-30}}"
+TIMEOUT=$(get_timeout 30 GOFAKES3_WAIT_TIMEOUT "$1")
 
 log_info "Waiting for gofakes3 to be ready on port 9000..."
 

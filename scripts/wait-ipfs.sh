@@ -8,9 +8,14 @@
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
-TIMEOUT="${1:-30}"
+TIMEOUT="$1"
 IPFS_ENDPOINT="${IPFS_ENDPOINT:-http://localhost:5001}"
 IPFS_CONTAINER="${IPFS_CONTAINER:-portal-ipfs}"
+
+# Check if timeout was actually provided (number) vs positional arg
+if [[ "$TIMEOUT" == *"tcp"* ]] || [[ "$TIMEOUT" == *"udp"* ]]; then
+  TIMEOUT=30
+fi
 
 log_info "Waiting for IPFS service at $IPFS_ENDPOINT to be ready..."
 

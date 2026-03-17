@@ -18,16 +18,13 @@ set -euo pipefail
 #   PORTAL_PORT - Port to run portal on (default: 8080)
 
 # Log file path
-LOG_PATH="${LOGFILE:-${1:-.portal.log}}"
+LOG_PATH=$(setup_log_path ".portal.log" LOGFILE "$1")
 
 # Use PORTAL_PORT from environment or default to 8080
 PORT="${PORTAL_PORT:-8080}"
 
 # Import environment for portal (this will also make PORTAL_PORT available)
-# shellcheck disable=SC1091
-set -a
-. scripts/load-env.sh
-set +a
+load_portal_env quiet
 
 # Re-read PORTAL_PORT after loading env (env takes priority)
 PORT="${PORTAL_PORT:-8080}"
@@ -83,24 +80,16 @@ fi
 echo "$PID" > .portal.pid
 
 # Wait for portal to be ready (up to 10 seconds)
-# shellcheck disable=SC2034  # Loop variable used only for iteration count
-for i in {1..10}; do
-  if ! kill -0 "$PID" 2>/dev/null; then
-    echo "Portal process died during startup" >&2
-    exit 1
-  fi
-  if curl -sf "http://localhost:${PORT}/health" > /dev/null 2>&1; then
-    log_ok "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"
-    exit 0
-  fi
-  sleep 1
-done
+wait_for_health_check_with_pid "$PORT" "/health" 10 1 "$PID"
+result=$?
 
-# Check if process is still alive
-if ! kill -0 "$PID" 2>/dev/null; then
-  echo "Portal process died during startup" >&2
+if [ "$result" -eq 0 ]; then
+  log_ok "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"
+  exit 0
+elif [ "$result" -eq 2 ]; then
+  log_error "Portal process died during startup"
+  exit 1
+else
+  log_error "Portal failed to become ready within 10 seconds"
   exit 1
 fi
-
-echo "Portal failed to become ready within 10 seconds" >&2
-exit 1

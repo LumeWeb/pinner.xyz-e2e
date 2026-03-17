@@ -15,16 +15,12 @@
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
-# Use environment variable or positional argument or default to 30
-TIMEOUT="${MYSQL_WAIT_TIMEOUT:-${1:-30}}"
+TIMEOUT=$(get_timeout 30 MYSQL_WAIT_TIMEOUT "$1")
 
 log_info "Waiting for MySQL to be ready for connections..."
 
 # Import environment to get portal configuration
-# shellcheck disable=SC1091
-set -a
-. scripts/load-env.sh
-set +a
+load_portal_env quiet
 
 # Extract DB credentials from PORTAL env vars
 MYSQL_USER="${PORTAL__CORE__DB__USERNAME}"

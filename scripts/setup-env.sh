@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+# Load shared library
+# shellcheck source=scripts/lib.sh
+source "${SCRIPT_DIR}/lib.sh"
+
 # Load shared configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/config.sh
@@ -101,9 +105,8 @@ for env_var in "${!RENTERD_VARS[@]}"; do
   esac
   
   if [ -n "$value" ]; then
-    # Escape special characters in value to prevent command injection
-    escaped_value=$(printf '%s' "$value" | sed 's/["\\]/\\&/g')
-    echo "export ${portal_var}=\"${escaped_value}\"" >> "$TEMP_ENV"
+    # Use export_env helper
+    export_env "$TEMP_ENV" "$portal_var" "$value"
   else
     echo "# ${env_var} not set, using empty value" >&2
   fi
@@ -126,7 +129,7 @@ if KUBO_PEER_ID_OUTPUT=$(./scripts/get-kubo-peer-id.sh 2>&1); then
         # PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS should be in CSV format
         # Format: PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS="addr1,addr2"
         BOOTSTRAP_CSV="$BOOTSTRAP_TCP,$BOOTSTRAP_UDP"
-        echo "export PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS=\"${BOOTSTRAP_CSV}\"" >> "$TEMP_ENV"
+        export_env "$TEMP_ENV" "PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS" "$BOOTSTRAP_CSV"
     else
         echo "Warning: Could not retrieve Kubo bootstrap addresses, using YAML defaults" >&2
     fi
@@ -145,10 +148,10 @@ QUIET=1 . scripts/load-env.sh
 
 # Export IPFS_API_ENDPOINT environment variable (not a PORTAL__ variable)
 # This is used by the IPFS API test helpers
-echo "export IPFS_API_ENDPOINT=\"${PRESERVED_IPFS_API_ENDPOINT}\"" >> .env
+export_env .env IPFS_API_ENDPOINT "${PRESERVED_IPFS_API_ENDPOINT}"
 
 # Export PORTAL_IPFS_PEER_ID environment variable for kubo bootstrap setup
-echo "export PORTAL_IPFS_PEER_ID=\"${PRESERVED_PORTAL_IPFS_PEER_ID}\"" >> .env
+export_env .env PORTAL_IPFS_PEER_ID "${PRESERVED_PORTAL_IPFS_PEER_ID}"
 
 # GitHub Actions mode: export all PORTAL__* variables to GITHUB_ENV
 # This makes them available to all subsequent steps without needing to source .env
