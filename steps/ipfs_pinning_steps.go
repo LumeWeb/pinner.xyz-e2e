@@ -47,10 +47,6 @@ func (s *PinningSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 
 	// Performance & stress testing scenarios
 	ctx.Step(`^the user has a (\d+)MB IPFS test file$`, s.theUserHasASizeMBIPFSTestFile)
-	ctx.Step(`^the user has a (\d+)GB IPFS test file$`, s.theUserHasASizeGBIPFSTestFile)
-	ctx.Step(`^the user uploads and pins the large IPFS test file$`, s.theUserUploadsAndPinsTheLargeIPFSTestFile)
-	ctx.Step(`^the IPFS pin reaches pinned status within (\d+) minutes$`, s.theIPFSPinReachesPinnedStatusWithinMinutes)
-	ctx.Step(`^the uploaded IPFS test file is available$`, s.theUploadedIPFSTestFileIsAvailable)
 }
 
 // theIPFSPinReachesPinnedStatusWithinMinutes verifies pin completes within time limit
@@ -506,85 +502,5 @@ func (s *PinningSteps) theUserHasASizeMBIPFSTestFile(ctx context.Context, sizeMB
 	}
 
 	ctx = helpers.SetKnownContent(ctx, string(content))
-	return ctx, nil
-}
-
-// theUserHasASizeGBIPFSTestFile creates test data of specified size for performance testing
-func (s *PinningSteps) theUserHasASizeGBIPFSTestFile(ctx context.Context, sizeGB int) (context.Context, error) {
-	sizeBytes := int64(sizeGB * 1024 * 1024 * 1024)
-	content, err := helpers.GenerateLargeTestFile(sizeBytes)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to generate IPFS test file: %w", err)
-	}
-
-	ctx = helpers.SetKnownContent(ctx, string(content))
-	return ctx, nil
-}
-
-// theUserUploadsAndPinsTheLargeIPFSTestFile uploads and pins the large IPFS test file via portal
-func (s *PinningSteps) theUserUploadsAndPinsTheLargeIPFSTestFile(ctx context.Context) (context.Context, error) {
-	originalContent, ok := helpers.GetKnownContent(ctx)
-	if !ok {
-		return ctx, fmt.Errorf("no IPFS test file content found")
-	}
-
-	cid, err := helpers.IPFSPortalUpload(ctx, []byte(originalContent), "large-test-file.bin")
-	if err != nil {
-		return ctx, fmt.Errorf("failed to upload large IPFS test file: %w", err)
-	}
-
-	_, ctx, err = helpers.IPFSPinAdd(ctx, cid)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to pin large IPFS test file: %w", err)
-	}
-
-	ctx = helpers.SetCID(ctx, cid)
-	return ctx, nil
-}
-
-// theIPFSPinReachesPinnedStatusWithinMinutes verifies pin completes within time limit
-func (s *PinningSteps) theIPFSPinReachesPinnedStatusWithinMinutes(ctx context.Context, minutes int) (context.Context, error) {
-	cidStr, err := helpers.RequireCID(ctx, "time limit verification")
-	if err != nil {
-		return ctx, err
-	}
-
-	timeout := time.Duration(minutes) * time.Minute
-	startTime := time.Now()
-
-	for {
-		pinned, err := helpers.IPFSIsPinned(ctx, cidStr)
-		if err != nil {
-			return ctx, fmt.Errorf("failed to check pin status: %w", err)
-		}
-
-		if pinned {
-			return ctx, nil
-		}
-
-		if time.Since(startTime) > timeout {
-			return ctx, fmt.Errorf("pin did not complete within %d minutes", minutes)
-		}
-
-		time.Sleep(5 * time.Second)
-	}
-}
-
-// theUploadedIPFSTestFileIsAvailable verifies the uploaded large IPFS test file CID is pinned and retrievable
-func (s *PinningSteps) theUploadedIPFSTestFileIsAvailable(ctx context.Context) (context.Context, error) {
-	cidStr, err := helpers.RequireCID(ctx, "IPFS test file availability verification")
-	if err != nil {
-		return ctx, err
-	}
-
-	pinned, err := helpers.IPFSIsPinned(ctx, cidStr)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to check if IPFS test file is available: %w", err)
-	}
-
-	if !pinned {
-		return ctx, fmt.Errorf("IPFS test file is not available")
-	}
-
 	return ctx, nil
 }

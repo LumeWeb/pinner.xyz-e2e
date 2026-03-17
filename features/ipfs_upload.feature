@@ -22,6 +22,13 @@ Feature: IPFS Upload
     And the operation completes
     Then the file is available on IPFS
 
+  @ipfs-upload-very-large
+  Scenario: User uploads a very large file to IPFS
+    Given the user has a 1GB IPFS test file
+    When the user uploads and pins the large IPFS test file
+    And the IPFS pin reaches pinned status within 5 minutes
+    Then the uploaded IPFS test file is available
+
   @ipfs-upload-directory
   Scenario: User uploads a directory structure to IPFS
     Given the user has an IPFS directory with multiple files
