@@ -28,7 +28,7 @@ load_portal_env quiet
 PORT="${PORTAL_PORT:-8080}"
 
 # Log file path
-LOG_PATH=$(setup_log_path ".portal.log" LOGFILE "$1")
+LOG_PATH=$(setup_log_path ".portal.log" LOGFILE "${1:-}")
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
@@ -78,8 +78,9 @@ fi
 # Save PID for later cleanup
 echo "$PID" > .portal.pid
 
-# Wait for portal to be ready (up to 10 seconds)
-wait_for_health_check_with_pid "$PORT" "/health" 10 1 "$PID"
+# Wait for portal to be ready (up to 30 seconds by default)
+TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT "${1:-}")
+wait_for_health_check_with_pid "$PORT" "/api/meta" "$TIMEOUT" 1 "$PID"
 result=$?
 
 if [ "$result" -eq 0 ]; then
@@ -89,6 +90,6 @@ elif [ "$result" -eq 2 ]; then
   log_error "Portal process died during startup"
   exit 1
 else
-  log_error "Portal failed to become ready within 10 seconds"
+  log_error "Portal failed to become ready within ${TIMEOUT} seconds"
   exit 1
 fi
