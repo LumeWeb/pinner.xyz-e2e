@@ -41,7 +41,7 @@ log_info() {
 # Sets SCRIPT_DIR and PROJECT_ROOT, and changes to project root
 setup_project_path() {
   # Get the directory of the calling script, not lib.sh
-  local caller_script="${BASH_SOURCE[1]}"
+  local caller_script="${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-$0}}"
   SCRIPT_DIR="$(cd "$(dirname "$caller_script")" && pwd)"
   PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
   cd "$PROJECT_ROOT"

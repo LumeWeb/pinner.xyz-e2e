@@ -189,7 +189,7 @@ fi
 
 # Install package globally and run compliance tests
 # Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 DNS_PRELOAD_PATH="${SCRIPT_DIR}/dns-preload.js"
 
 # Install package globally if not already installed
