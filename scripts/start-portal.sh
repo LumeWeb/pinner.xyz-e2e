@@ -79,7 +79,8 @@ fi
 echo "$PID" > .portal.pid
 
 # Wait for portal to be ready (up to 30 seconds by default)
-TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT "${1:-}")
+# NOTE: Don't use $1 here - it's for log-path argument, not timeout
+TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT)
 wait_for_health_check_with_pid "$PORT" "/api/meta" "$TIMEOUT" 1 "$PID"
 result=$?
 

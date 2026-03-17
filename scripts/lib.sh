@@ -466,10 +466,11 @@ get_timeout() {
   local env_var_name="$2"
   local positional="${3:-}"
   
-  if [ -n "$env_var_name" ] && [ -n "${!env_var_name:-}" ]; then
-    echo "${!env_var_name}"
-  elif [ -n "$positional" ]; then
+  # Ensure positional is numeric (integer) before using
+  if [ -n "$positional" ] && [ "$positional" -eq "$positional" ] 2>/dev/null; then
     echo "$positional"
+  elif [ -n "$env_var_name" ] && [ -n "${!env_var_name:-}" ]; then
+    echo "${!env_var_name}"
   else
     echo "$default"
   fi
