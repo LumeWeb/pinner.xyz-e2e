@@ -159,3 +159,9 @@ jobs:
           echo "=== Portal Logs ==="
           cat ${{ steps.portal.outputs.log_file }} || true
         fi
+    
+    - name: Keep job alive for debugging
+      if: failure()
+      run: |
+        echo "Job failed. Keeping VM alive for 30 minutes..."
+        sleep 1800
