@@ -542,6 +542,10 @@ load_portal_env() {
       return 1
     fi
   fi
+  
+  # Export simplified variable names for scripts that don't use the PORTAL__* prefix
+  export DNS_RESOLVER="${PORTAL__CORE__DNS_RESOLVER:-127.0.0.1:5353}"
+  export PORTAL_PORT="${PORTAL__CORE__PORT:-${PORTAL_PORT:-8080}}"
 }
 
 # Add export line to environment file

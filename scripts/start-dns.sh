@@ -8,6 +8,9 @@ set -euo pipefail
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
+# Load environment for DNS configuration
+load_portal_env quiet
+
 # Setup project path
 setup_project_path
 
