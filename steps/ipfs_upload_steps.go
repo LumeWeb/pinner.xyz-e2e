@@ -346,28 +346,37 @@ func (s *IPFSUploadSteps) theDirectoryStructureIsPreserved(ctx context.Context) 
 	}
 	return ctx, nil
 }
-// theUserHasASizeGBIPFSTestFile creates test data of specified size in GB
+// theUserHasASizeGBIPFSTestFile creates test data of specified size in GB on disk
+// Stores file path in context for upload. Caller is responsible for cleanup.
 func (s *IPFSUploadSteps) theUserHasASizeGBIPFSTestFile(ctx context.Context, sizeGB int) (context.Context, error) {
 	sizeBytes := int64(sizeGB * 1024 * 1024 * 1024)
-	content, err := helpers.GenerateLargeTestFile(sizeBytes)
+	filePath, err := helpers.GenerateLargeTestFileOnDisk(sizeBytes, "ipfs-large-test")
 	if err != nil {
-		return ctx, fmt.Errorf("failed to generate IPFS test file: %w", err)
+		return ctx, fmt.Errorf("failed to generate IPFS test file on disk: %w", err)
 	}
-	
-	ctx = helpers.SetKnownContent(ctx, string(content))
+
+	ctx = helpers.SetTestFilePath(ctx, filePath)
 	return ctx, nil
 }
 
 // theUserUploadsAndPinsTheLargeIPFSTestFile uploads and pins the large IPFS test file via portal
+// Uses disk-based upload to avoid holding large files in memory. Cleans up test file after upload.
 func (s *IPFSUploadSteps) theUserUploadsAndPinsTheLargeIPFSTestFile(ctx context.Context) (context.Context, error) {
-	originalContent, ok := helpers.GetKnownContent(ctx)
+	filePath, ok := helpers.GetTestFilePath(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("no IPFS test file content found")
+		return ctx, fmt.Errorf("no IPFS test file path found")
 	}
 
-	cid, err := helpers.IPFSPortalUpload(ctx, []byte(originalContent), "large-test-file.bin")
+	// Upload from disk instead of memory
+	cid, err := helpers.IPFSPortalUploadFromFS(ctx, filePath, "large-test-file.bin")
 	if err != nil {
-		return ctx, fmt.Errorf("failed to upload large IPFS test file: %w", err)
+		return ctx, fmt.Errorf("failed to upload large IPFS test file from disk: %w", err)
+	}
+
+	// Clean up the test file after successful upload
+	if removeErr := os.Remove(filePath); removeErr != nil {
+		// Log but don't fail the test if cleanup fails
+		fmt.Printf("Warning: failed to cleanup test file %s: %v\n", filePath, removeErr)
 	}
 
 	ctx = helpers.SetCID(ctx, cid)

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -69,6 +70,7 @@ const (
 	FilenameKey             contextKey = "filename"
 	TestDirectoryKey        contextKey = "test_directory"
 	PinnedStatusKey         contextKey = "pinned_status"
+	TestFilePathKey         contextKey = "test_file_path"
 )
 
 // =============================================================================
@@ -201,6 +203,44 @@ func GenerateLargeTestFile(sizeBytes int64) ([]byte, error) {
 		return nil, fmt.Errorf("failed to generate random content: %w", err)
 	}
 	return content, nil
+}
+
+// GenerateLargeTestFileOnDisk creates a test file of specified size on disk
+// Returns the file path. The caller is responsible for cleaning up the file.
+// Useful for testing large file uploads without holding data in memory.
+func GenerateLargeTestFileOnDisk(sizeBytes int64, filename string) (string, error) {
+	// Create temporary file with specified prefix
+	tmpFile, err := os.CreateTemp("", filename+"-*.bin")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer tmpFile.Close()
+
+	// Write random data in chunks to avoid high memory usage
+	buf := make([]byte, 64*1024) // 64KB chunks
+	var written int64
+	for written < sizeBytes {
+		chunkSize := int64(len(buf))
+		if written+chunkSize > sizeBytes {
+			chunkSize = sizeBytes - written
+		}
+
+		_, err = rand.Read(buf[:chunkSize])
+		if err != nil {
+			os.Remove(tmpFile.Name())
+			return "", fmt.Errorf("failed to generate random content: %w", err)
+		}
+
+		_, err = tmpFile.Write(buf[:chunkSize])
+		if err != nil {
+			os.Remove(tmpFile.Name())
+			return "", fmt.Errorf("failed to write to temp file: %w", err)
+		}
+
+		written += chunkSize
+	}
+
+	return tmpFile.Name(), nil
 }
 
 // ComputeCIDFromContent computes the IPFS CID for given content using go-cid
@@ -748,6 +788,16 @@ func SetTestDirectory(ctx context.Context, dir string) context.Context {
 // GetTestDirectory retrieves test directory from context
 func GetTestDirectory(ctx context.Context) (string, bool) {
 	return GetContextValue[string](ctx, TestDirectoryKey)
+}
+
+// SetTestFilePath stores test file path in context
+func SetTestFilePath(ctx context.Context, path string) context.Context {
+	return SetContextValue(ctx, TestFilePathKey, path)
+}
+
+// GetTestFilePath retrieves test file path from context
+func GetTestFilePath(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, TestFilePathKey)
 }
 
 // SetPinnedStatus stores pinned status in context
