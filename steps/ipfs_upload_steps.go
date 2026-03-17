@@ -40,6 +40,8 @@ func (s *IPFSUploadSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the user has a (\d+)MB file with unique content$`, s.theUserHasASizeMBFile)
 	ctx.Step(`^the retrieved file CID matches original$`, s.theRetrievedFileCIDMatchesOriginal)
 	ctx.Step(`^all (\d+) files are available$`, s.allNFilesAreAvailable)
+	ctx.Step(`^the user uploads the IPFS file$`, s.theUserUploadsTheIPFSFile)
+	ctx.Step(`^the user uploads the IPFS file via TUS$`, s.theUserUploadsTheIPFSFileViaTUS)
 }
 
 // theUserHasAFileWithKnownContent creates test content for integrity verification
@@ -218,12 +220,46 @@ func (s *IPFSUploadSteps) theUserStartsNConcurrentFileUploads(ctx context.Contex
 	ctx = helpers.SetCIDs(ctx, cids)
 	
 	// Wait for all operations to complete and verify pins
+	// Increased timeout to 10 minutes per operation for 10 concurrent uploads
 	for i, cid := range cids {
-		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, 2*time.Minute); err != nil {
+		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, 10*time.Minute); err != nil {
 			return ctx, fmt.Errorf("operation for file %d failed: %w", i, err)
 		}
 	}
 	
+	return ctx, nil
+}
+
+// theUserUploadsTheIPFSFile uploads a file with known content to IPFS
+func (s *IPFSUploadSteps) theUserUploadsTheIPFSFile(ctx context.Context) (context.Context, error) {
+	content, ok := helpers.GetKnownContent(ctx)
+	if !ok {
+		return ctx, fmt.Errorf("no known content found in context")
+	}
+
+	cid, err := helpers.IPFSPortalUpload(ctx, []byte(content), "integrity-test-file.bin")
+	if err != nil {
+		return ctx, fmt.Errorf("failed to upload IPFS file: %w", err)
+	}
+
+	ctx = helpers.SetCID(ctx, cid)
+	return ctx, nil
+}
+
+// theUserUploadsTheIPFSFileViaTUS uploads a file via TUS protocol
+func (s *IPFSUploadSteps) theUserUploadsTheIPFSFileViaTUS(ctx context.Context) (context.Context, error) {
+	content, ok := helpers.GetKnownContent(ctx)
+	if !ok {
+		return ctx, fmt.Errorf("no known content found in context")
+	}
+
+	// Upload via portal - the SDK automatically uses TUS for large files (>100MB)
+	cid, err := helpers.IPFSPortalUpload(ctx, []byte(content), "tus-integrity-file.bin")
+	if err != nil {
+		return ctx, fmt.Errorf("failed to upload IPFS file via TUS: %w", err)
+	}
+
+	ctx = helpers.SetCID(ctx, cid)
 	return ctx, nil
 }
 

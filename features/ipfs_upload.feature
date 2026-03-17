@@ -41,7 +41,7 @@ Feature: IPFS Upload
   @ipfs-upload-content-integrity
   Scenario: Uploaded content matches original
     Given the user has a file with known content
-    When the user uploads the file
+    When the user uploads the IPFS file
     And the IPFS pin reaches pinned status
     And the operation completes
     Then the retrieved content matches original
@@ -49,7 +49,7 @@ Feature: IPFS Upload
   @ipfs-large-file-integrity-tus
   Scenario: Large file uploaded via TUS maintains integrity
     Given the user has a 200MB file with unique content
-    When the user uploads the file via TUS
+    When the user uploads the IPFS file via TUS
     And the IPFS pin reaches pinned status
     And the operation completes
     Then the retrieved file CID matches original

@@ -81,16 +81,29 @@ echo "$PID" > .portal.pid
 # Wait for portal to be ready (up to 30 seconds by default)
 # NOTE: Don't use $1 here - it's for log-path argument, not timeout
 TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT)
+# Disable set -e temporarily so we can check return code without exiting
+set +e
 wait_for_health_check_with_pid "$PORT" "/api/meta" "$TIMEOUT" 1 "$PID"
 result=$?
+set -e
 
 if [ "$result" -eq 0 ]; then
   log_ok "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"
   exit 0
 elif [ "$result" -eq 2 ]; then
-  log_error "Portal process died during startup"
+  log_error "Portal process (PID: ${PID}) died during startup"
+  if [ -f "${LOG_PATH}" ] && [ -s "${LOG_PATH}" ]; then
+    log_error "Last 20 lines from ${LOG_PATH}:"
+    tail -20 "${LOG_PATH}" | sed 's/^/  /' >&2
+  else
+    log_warn "No log content available (log file missing or empty). Process died before writing logs."
+  fi
   exit 1
 else
   log_error "Portal failed to become ready within ${TIMEOUT} seconds"
+  if [ -f "${LOG_PATH}" ]; then
+    log_error "Last 20 lines from ${LOG_PATH}:"
+    tail -20 "${LOG_PATH}" | sed 's/^/  /' >&2
+  fi
   exit 1
 fi

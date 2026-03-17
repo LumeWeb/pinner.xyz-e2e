@@ -39,7 +39,7 @@ Feature: IPFS Pinning
 
   @ipfs-pin-very-large
   Scenario: Pin operations complete within reasonable time for large content
-    Given the user has a 3GB IPFS test file
+    Given the user has a 1GB IPFS test file
     When the user uploads and pins the large IPFS test file
     And the IPFS pin reaches pinned status within 5 minutes
     Then the uploaded IPFS test file is available

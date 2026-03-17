@@ -27,7 +27,13 @@ MYSQL_HOST="${PORTAL__CORE__DB__HOST}"
 
 log_info "Using docker MySQL container"
 export MYSQL_PWD="$MYSQL_PASSWORD"
-if wait_with_timeout "$TIMEOUT" "docker exec mysql mysqladmin ping -h ${MYSQL_HOST} -u ${MYSQL_USER} --silent"; then
+# Detect MySQL container name (local: portal-mysql, CI: mysql)
+MYSQL_CONTAINER="portal-mysql"
+if ! docker inspect "$MYSQL_CONTAINER" >/dev/null 2>&1; then
+  MYSQL_CONTAINER="mysql"
+fi
+
+if wait_with_timeout "$TIMEOUT" "docker exec $MYSQL_CONTAINER mysqladmin ping -h 127.0.0.1 -u ${MYSQL_USER} --silent"; then
   log_ok "MySQL is ready"
   exit 0
 else
