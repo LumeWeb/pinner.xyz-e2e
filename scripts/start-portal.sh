@@ -17,19 +17,18 @@ set -euo pipefail
 #   LOGFILE     - Path to log file (overrides positional argument)
 #   PORTAL_PORT - Port to run portal on (default: 8080)
 
-# Log file path
-LOG_PATH=$(setup_log_path ".portal.log" LOGFILE "$1")
-
-# Use PORTAL_PORT from environment or default to 8080
-PORT="${PORTAL_PORT:-8080}"
+# Import shared utility functions
+# shellcheck disable=SC1091
+. scripts/lib.sh
 
 # Import environment for portal (this will also make PORTAL_PORT available)
 load_portal_env quiet
 
-# Re-read PORTAL_PORT after loading env (env takes priority)
+# Use PORTAL_PORT from environment or default to 8080
 PORT="${PORTAL_PORT:-8080}"
 
-# Import shared utility functions
+# Log file path
+LOG_PATH=$(setup_log_path ".portal.log" LOGFILE "$1")
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
