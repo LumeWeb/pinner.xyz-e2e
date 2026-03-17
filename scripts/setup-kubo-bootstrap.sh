@@ -6,6 +6,11 @@
 
 set -e
 
+# Load shared configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/config.sh
+source "${SCRIPT_DIR}/config.sh"
+
 # Load environment variables from .env
 set -a
 . scripts/load-env.sh
@@ -55,8 +60,8 @@ echo "Found IPFS container: $IPFS_CONTAINER"
 
 # Add portal peer to kubo bootstrap
 # Portal uses port 4002 to avoid conflict with Kubo's port 4001
-# Use deterministic portal peer ID from environment variable
-PORTAL_IPFS_PEER_ID="${PORTAL_IPFS_PEER_ID:-12D3KooWJbFjcpUmr4tNfpy2kCwTTZ6kq6G7iUrqNQt7yxNjSLRz}"
+# Use deterministic portal peer ID from environment variable or shared config
+PORTAL_IPFS_PEER_ID="${PORTAL_IPFS_PEER_ID:-$DEFAULT_PORTAL_IPFS_PEER_ID}"
 echo "Using portal peer ID: $PORTAL_IPFS_PEER_ID"
 
 docker exec "$IPFS_CONTAINER" ipfs bootstrap add "/ip4/$portal_ip/tcp/4002/p2p/$PORTAL_IPFS_PEER_ID" > /dev/null 2>&1 || \

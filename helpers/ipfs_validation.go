@@ -89,7 +89,7 @@ func IPFSUploadAndPin(ctx context.Context, content []byte, filename string) (str
 
 	_, ctx, err = IPFSPinAdd(ctx, cid)
 	if err != nil {
-		return "", ctx, fmt.Errorf("failed to pin content %s: %w", filename, err)
+		return cid, ctx, fmt.Errorf("failed to pin content %s: %w", filename, err)
 	}
 
 	ctx = SetCID(ctx, cid)

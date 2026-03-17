@@ -3,6 +3,11 @@
 
 set -euo pipefail
 
+# Load shared configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/config.sh
+source "${SCRIPT_DIR}/config.sh"
+
 # Generate environment variables from YAML configurations
 # Usage: ./scripts/setup-env.sh [db-type mysql|sqlite] [workflow-mode true|false]
 # Environment variables expected:
@@ -10,9 +15,6 @@ set -euo pipefail
 #   RENTERD_API_PASSWORD - API password for renterd
 #   IPFS_API_ENDPOINT - IPFS API endpoint for Kubo RPC client (default: http://127.0.0.1:5001)
 #   PORTAL_IPFS_PEER_ID - Deterministic portal IPFS peer ID (from test seed)
-
-# Default portal IPFS peer ID (deterministic based on test seed)
-DEFAULT_PORTAL_IPFS_PEER_ID="12D3KooWJbFjcpUmr4tNfpy2kCwTTZ6kq6G7iUrqNQt7yxNjSLRz"
 
 DB_TYPE="${1:-mysql}"
 WORKFLOW_MODE="${2:-false}"
@@ -119,11 +121,7 @@ if KUBO_PEER_ID_OUTPUT=$(./scripts/get-kubo-peer-id.sh 2>&1); then
         # Set PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS to list of bootstrap addresses
         # This overrides the hardcoded values from YAML config
         echo "Setting IPFS bootstrap peers from Kubo: $BOOTSTRAP_TCP, $BOOTSTRAP_UDP"
-        
-        # Escape special characters in bootstrap addresses
-        BOOTSTRAP_TCP_ESCAPED=$(printf '%s' "$BOOTSTRAP_TCP" | sed 's/[\\"]/\\&/g')
-        BOOTSTRAP_UDP_ESCAPED=$(printf '%s' "$BOOTSTRAP_UDP" | sed 's/[\\"]/\\&/g')
-        
+
         # Generate env var that matches the YAML path: plugin.ipfs.protocol.bootstrap_peers
         # PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS should be in CSV format
         # Format: PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS="addr1,addr2"

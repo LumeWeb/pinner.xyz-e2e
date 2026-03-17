@@ -48,21 +48,29 @@ func (l *Logger) logInternal(ctx context.Context, level LogLevel, format string,
 // Info logs informational messages about test operations
 // Use for significant events like starting cleanup, completing operations
 func (l *Logger) Info(ctx context.Context, format string, args ...interface{}) {
-	l.logInternal(ctx, LevelInfo, fmt.Sprintf("[INFO] %s - %s", l.scenarioName, format), args...)
+	newFormat := "[INFO] %s - " + format
+	newArgs := append([]interface{}{l.scenarioName}, args...)
+	l.logInternal(ctx, LevelInfo, newFormat, newArgs...)
 }
 
 // Debug logs detailed debugging information
 // Only emitted when debugging is explicitly enabled
 func (l *Logger) Debug(ctx context.Context, format string, args ...interface{}) {
-	l.logInternal(ctx, LevelDebug, fmt.Sprintf("[DEBUG] %s - %s", l.scenarioName, format), args...)
+	newFormat := "[DEBUG] %s - " + format
+	newArgs := append([]interface{}{l.scenarioName}, args...)
+	l.logInternal(ctx, LevelDebug, newFormat, newArgs...)
 }
 
 // Warn logs warning messages for non-critical issues
 func (l *Logger) Warn(ctx context.Context, format string, args ...interface{}) {
-	l.logInternal(ctx, LevelWarn, fmt.Sprintf("[WARN] %s - %s", l.scenarioName, format), args...)
+	newFormat := "[WARN] %s - " + format
+	newArgs := append([]interface{}{l.scenarioName}, args...)
+	l.logInternal(ctx, LevelWarn, newFormat, newArgs...)
 }
 
 // Error logs error messages
 func (l *Logger) Error(ctx context.Context, format string, args ...interface{}) {
-	l.logInternal(ctx, LevelError, fmt.Sprintf("[ERROR] %s - %s", l.scenarioName, format), args...)
+	newFormat := "[ERROR] %s - " + format
+	newArgs := append([]interface{}{l.scenarioName}, args...)
+	l.logInternal(ctx, LevelError, newFormat, newArgs...)
 }

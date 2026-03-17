@@ -42,9 +42,15 @@ func (s *ContentListSteps) theUserHasUploadedFiles(ctx context.Context) (context
 	contents, _ := helpers.GetIPFSContentList(ctx)
 
 	// Add files until we have 5 total
-	needed := 5 - len(contents)
+	initialLen := len(contents)
+	if initialLen >= 5 {
+		ctx = helpers.SetIPFSContentList(ctx, contents)
+		return ctx, nil
+	}
+	needed := 5 - initialLen
+
 	for i := range needed {
-		index := i + len(contents)
+		index := i + initialLen
 		buf := []byte{}
 		buf = fmt.Appendf(buf, "test content %d", index)
 		

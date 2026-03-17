@@ -34,6 +34,8 @@ Feature: IPFS Upload
   @ipfs-concurrent-upload-stress
   Scenario: Multiple concurrent uploads complete successfully
     When the user starts 10 concurrent file uploads
+    And the IPFS pin reaches pinned status
+    And the operation completes
     Then all 10 files are available
 
   @ipfs-upload-content-integrity

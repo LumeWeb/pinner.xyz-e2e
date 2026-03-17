@@ -10,8 +10,8 @@ KUBO_NETWORK="${KUBO_NETWORK:-pinnerxyz-e2e_e2e-network}"
 
 echo "Retrieving Kubo peer ID from container: $CONTAINER_NAME"
 
-# Check if container is running
-if ! docker ps --filter "name=$CONTAINER_NAME" --format '{{.Status}}' | grep -q "Up"; then
+# Check if container is running (exact name match)
+if [ "$(docker container inspect -f '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null)" != "running" ]; then
     echo "Error: Kubo container '$CONTAINER_NAME' is not running"
     echo "Please ensure 'make up' has been executed"
     exit 1

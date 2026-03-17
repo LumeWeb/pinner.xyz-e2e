@@ -77,6 +77,17 @@ fi
 
 log_info "Running IPFS compliance tests..."
 
+# Set up cleanup trap for temp directory (function will be called on exit)
+# Note: COMPLIANCE_REPORT_DIR and IS_TEMP_DIR are set later in the script
+# shellcheck disable=SC2154,SC2317  # Variables are defined later, function invoked via trap
+cleanup_temp_dir() {
+	if [[ "${IS_TEMP_DIR:-0}" == "1" ]] && [[ -n "${COMPLIANCE_REPORT_DIR:-}" ]]; then
+		log_info "Cleaning up temporary directory: $COMPLIANCE_REPORT_DIR"
+		rm -rf "$COMPLIANCE_REPORT_DIR"
+	fi
+}
+trap cleanup_temp_dir EXIT
+
 # Verify compliance package is installed
 PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE")
 
@@ -150,12 +161,16 @@ fi
 # Get output directory from package path
 # Remove /src/index.js suffix and add /docs to find report location
 COMPLIANCE_OUTPUT_DIR="${PACKAGE_PATH%/src/index.js}/docs"
+IS_TEMP_DIR=0
 
 if [ ! -d "$COMPLIANCE_OUTPUT_DIR" ]; then
 	log_warn "Output directory does not exist: $COMPLIANCE_OUTPUT_DIR"
 	COMPLIANCE_REPORT_DIR=$(mktemp -d)
+	# Mark as temp dir for cleanup
+	IS_TEMP_DIR=1
 else
 	COMPLIANCE_REPORT_DIR="$COMPLIANCE_OUTPUT_DIR"
+	IS_TEMP_DIR=0
 fi
 
 log_info "Compliance output directory: $COMPLIANCE_REPORT_DIR"
@@ -195,9 +210,9 @@ log_info "Running compliance tests from: $PACKAGE_PATH"
 
 # Run compliance tests with DNS preload script
 # Capture both stdout and stderr
-COMPLIANCE_OUTPUT=$(node --require "$DNS_PRELOAD_PATH" "$PACKAGE_PATH" \
+# Use environment variable to avoid exposing API key in process listings
+COMPLIANCE_OUTPUT=$(API_KEY="$API_KEY" node --require "$DNS_PRELOAD_PATH" "$PACKAGE_PATH" \
 	-s "$IPFS_ENDPOINT" \
-	"$API_KEY" \
 	${VERBOSE_FLAG:+$VERBOSE_FLAG} \
 	${DEBUG_FLAG:+$DEBUG_FLAG} \
 	2>&1)

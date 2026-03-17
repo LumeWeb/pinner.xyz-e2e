@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/ipfs/boxo/files"
 	"github.com/ipfs/boxo/path"
@@ -15,28 +16,25 @@ import (
 )
 
 // Global RPC client instance for local Kubo
-var kuboClient *rpc.HttpApi
+var (
+	kuboClient *rpc.HttpApi
+	kuboOnce   sync.Once
+	kuboErr    error
+)
 
 // getKuboClient returns the Kubo RPC client instance
 func getKuboClient() (*rpc.HttpApi, error) {
-	if kuboClient != nil {
-		return kuboClient, nil
-	}
-
-	// Get IPFS API endpoint from environment
-	ipfsAPIEndpoint := os.Getenv("IPFS_API_ENDPOINT")
-	if ipfsAPIEndpoint == "" {
-		ipfsAPIEndpoint = "http://127.0.0.1:5001"
-	}
-
-	// Create new HTTP API client with default HTTP client
-	var err error
-	kuboClient, err = rpc.NewURLApiWithClient(ipfsAPIEndpoint, http.DefaultClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Kubo client: %w", err)
-	}
-
-	return kuboClient, nil
+	kuboOnce.Do(func() {
+		ipfsAPIEndpoint := os.Getenv("IPFS_API_ENDPOINT")
+		if ipfsAPIEndpoint == "" {
+			ipfsAPIEndpoint = "http://127.0.0.1:5001"
+		}
+		kuboClient, kuboErr = rpc.NewURLApiWithClient(ipfsAPIEndpoint, http.DefaultClient)
+		if kuboErr != nil {
+			kuboErr = fmt.Errorf("failed to create Kubo client: %w", kuboErr)
+		}
+	})
+	return kuboClient, kuboErr
 }
 
 // KuboAdd adds the given content to local Kubo and returns the CID

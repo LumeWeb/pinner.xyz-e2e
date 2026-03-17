@@ -225,8 +225,13 @@ cleanup_pid() {
 # Usage: cleanup_portal_config
 cleanup_portal_config() {
   log_info "Cleaning up stale configuration files..."
-  rm -rf /etc/lumeweb/portal "$HOME/.lumeweb/portal" ./core.yaml 2>/dev/null || true
-  log_ok "Configuration files cleaned"
+  local failed=0
+  rm -f /etc/lumeweb/portal/core.yaml "$HOME/.lumeweb/portal/core.yaml" ./core.yaml 2>/dev/null || failed=1
+  if [ $failed -eq 0 ]; then
+    log_ok "Configuration files cleaned"
+  else
+    log_info "Configuration cleanup skipped (non-writable)"
+  fi
 }
 
 # API call helpers
@@ -367,7 +372,7 @@ check_command() {
 # Returns: 0 if available, 1 if not
 require_npm_package() {
   local package_name="$1"
-  if npm view "$package_name" version &> /dev/null; then
+  if npm list -g "$package_name" &> /dev/null; then
     return 0
   else
     return 1
@@ -379,6 +384,10 @@ require_npm_package() {
 # Returns: JSON string
 # Example: json_build --arg email "test@example.com" --arg password "pass" '{email: $email, password: $password}'
 json_build() {
+  if [ $# -eq 0 ]; then
+    log_error "json_build requires at least one argument"
+    return 1
+  fi
   jq -n "$@"
 }
 
@@ -414,7 +423,7 @@ install_npm_package_globally() {
   
   if check_command "npm"; then
     log_info "Installing $package globally..."
-    npm install -g "$package"
+    npm install -g "$package" || return 1
   else
     log_info "npm command not found"
     return 1

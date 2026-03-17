@@ -146,12 +146,11 @@ jobs:
         ./scripts/run-tests.sh
     
     - name: Run IPFS Compliance Tests
-      continue-on-error: true
       run: |
         chmod +x ./scripts/setup-compliance.sh
         chmod +x ./scripts/run-compliance-tests.sh
-        ./scripts/setup-compliance.sh || echo "Compliance setup failed"
-        ./scripts/run-compliance-tests.sh || echo "Compliance tests failed"
+        ./scripts/setup-compliance.sh
+        ./scripts/run-compliance-tests.sh
     
     - name: Portal Logs
       if: always()

@@ -94,8 +94,11 @@ func WaitForPinStatus(ctx context.Context, requestID string, desiredStatus ipfs.
 // AddPin pins the given CID using Portal SDK
 // Returns the PinStatus which contains the request ID for cleanup
 func (pp *PortalPinning) AddPin(ctx context.Context, cidString string) (*ipfs.PinStatus, error) {
-	cid, _ := goCid.Decode(cidString)
-	
+	cid, err := goCid.Decode(cidString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode CID %s: %w", cidString, err)
+	}
+
 	pinStatus, err := pp.client.Pinning().AddPin(ctx, cid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pin CID %s: %w", cidString, err)
@@ -229,8 +232,9 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 		}
 
 		// Use the SDK's built-in WaitForOperation with the operation ID
+		remainingTime := time.Until(deadline)
 		_, err = api.WaitForOperation(ctx, int64(targetOp.Id),
-			account.WithPollTimeout(timeout),
+			account.WithPollTimeout(remainingTime),
 			account.WithPollInterval(pollInterval),
 			account.WithPollSettledStates(account.OperationStatusCompleted),
 		)

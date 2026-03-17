@@ -86,7 +86,7 @@ login_compliance_user() {
 
 	# Extract auth_token from Location header
 	local auth_token
-	auth_token=$(echo "$headers" | grep -i "Location:" | sed 's/.*auth_token=//' | tr -d '\r')
+	auth_token=$(echo "$headers" | grep -i "Location:" | sed 's/.*auth_token=//' | cut -d'&' -f1 | tr -d '\r')
 
 	if [ -z "$auth_token" ]; then
 		log_error "No auth_token found in login response"

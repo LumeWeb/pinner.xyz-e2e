@@ -367,10 +367,11 @@ func (s *AccountSteps) theUserCreatesTwoAPIKeys(ctx context.Context, name1, name
 
 func (s *AccountSteps) theUserListsAPIKeysWithPageSize(ctx context.Context, pageSize int) (context.Context, error) {
 	ctx = helpers.SetPageSize(ctx, pageSize)
-	ctx, _, err := helpers.VerifyAPIKeysPagination(ctx, pageSize)
+	ctx, apiKeys, err := helpers.VerifyAPIKeysPagination(ctx, pageSize)
 	if err != nil {
 		return ctx, fmt.Errorf("pagination verification failed: %w", err)
 	}
+	ctx = helpers.SetAPIKeysList(ctx, apiKeys)
 	return ctx, nil
 }
 

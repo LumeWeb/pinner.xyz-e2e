@@ -82,6 +82,25 @@ fi
 # Save PID for later cleanup
 echo "$PID" > .portal.pid
 
-sleep 3
+# Wait for portal to be ready (up to 10 seconds)
+# shellcheck disable=SC2034  # Loop variable used only for iteration count
+for i in {1..10}; do
+  if ! kill -0 "$PID" 2>/dev/null; then
+    echo "Portal process died during startup" >&2
+    exit 1
+  fi
+  if curl -sf "http://localhost:${PORT}/health" > /dev/null 2>&1; then
+    log_ok "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"
+    exit 0
+  fi
+  sleep 1
+done
 
-log_ok "Portal started (PID: ${PID}) on port ${PORT} logging to ${LOG_PATH}"
+# Check if process is still alive
+if ! kill -0 "$PID" 2>/dev/null; then
+  echo "Portal process died during startup" >&2
+  exit 1
+fi
+
+echo "Portal failed to become ready within 10 seconds" >&2
+exit 1

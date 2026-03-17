@@ -123,7 +123,7 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 		}
 	}
 
-	return ctx, nil
+	return ctx, recoveredErr
 }
 
 // afterScenarioCleanup performs cleanup after each scenario
@@ -134,7 +134,6 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 		panicHandler.scenarioName = sc.Name
 	}
 	defer panicHandler.RecoverFromPanic(&err)
-	returnErr := err
 
 	if ctx == nil {
 		return ctx, err
@@ -172,7 +171,7 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 	// Clean up IPFS assets created during the scenario
 	cleanupIPFSAssets(ctx)
 
-	return ctx, returnErr
+	return ctx, err
 }
 
 // getPortalConfig retrieves common portal configuration values
