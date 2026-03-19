@@ -447,6 +447,25 @@ get_npm_package_path() {
     "$HOME/.local/lib/node_modules/${package}/${entry_point}"
   )
   
+  # Check GitHub Actions hosted toolcache directory for each Node.js version
+  local toolcache_dir="/opt/hostedtoolcache/node"
+  if [ -d "$toolcache_dir" ]; then
+    for version_dir in "$toolcache_dir"/*; do
+      if [ -d "$version_dir" ]; then
+        # Try both with and without architecture subdirectory
+        local arch_path="${version_dir}/x64"
+        local version_path="$version_dir"
+        
+        if [ -d "${arch_path}/lib/node_modules" ]; then
+          paths+=("${arch_path}/lib/node_modules/${package}/${entry_point}")
+        fi
+        if [ -d "${version_path}/lib/node_modules" ]; then
+          paths+=("${version_path}/lib/node_modules/${package}/${entry_point}")
+        fi
+      fi
+    done
+  fi
+  
   for path in "${paths[@]}"; do
     if [ -f "$path" ]; then
       printf '%s' "$path"
