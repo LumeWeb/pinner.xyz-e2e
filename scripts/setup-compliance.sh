@@ -57,15 +57,6 @@ fi
 log_info "Node.js found: $(node --version)"
 log_info "npm found: $(npm --version)"
 
-# Check if npm package can be fetched
-if ! require_npm_package "$COMPLIANCE_PACKAGE"; then
-	log_error "Could not verify npm package: $COMPLIANCE_PACKAGE"
-	log_error "Please check internet connection and npm registry access."
-	exit 1
-fi
-
-log_info "npm package verified: $COMPLIANCE_PACKAGE"
-
 # Check if package is already installed
 PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE")
 
