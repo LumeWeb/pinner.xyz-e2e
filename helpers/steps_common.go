@@ -147,12 +147,6 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 		return ctx, err
 	}
 
-	// Log scenario timing
-	if startTime, ok := GetContextValue[time.Time](ctx, ScenarioStartTimeKey); ok {
-		elapsed := time.Since(startTime)
-		fmt.Printf("TIMING: Scenario '%s' took %v\n", sc.Name, elapsed)
-	}
-
 	// Clean up API keys created during the scenario
 	apiKeysToDelete := GetAPIKeyUUIDsCleanup(ctx)
 	if len(apiKeysToDelete) > 0 {
@@ -180,6 +174,12 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 
 	// Clean up IPFS assets created during the scenario
 	cleanupIPFSAssets(ctx)
+
+	// Log scenario timing after all cleanup to avoid output interleaving
+	if startTime, ok := GetContextValue[time.Time](ctx, ScenarioStartTimeKey); ok {
+		elapsed := time.Since(startTime)
+		fmt.Printf("TIMING: Scenario '%s' took %v\n", sc.Name, elapsed)
+	}
 
 	return ctx, err
 }
