@@ -16,37 +16,7 @@ import (
 // This gives operations sufficient time to complete before timing out.
 const DefaultOperationTimeout = 30 * time.Minute
 
-// toCIDV1 converts any CID (v0 or v1) to its v1 representation for comparison
-func toCIDV1(c goCid.Cid) goCid.Cid {
-	switch c.Version() {
-	case 0:
-		newCid := goCid.NewCidV1(c.Type(), c.Hash())
-		return newCid
-	case 1:
-		// Already v1 - return as-is
-		return c
-	default:
-		// Unsupported version
-		return goCid.Undef
-	}
-}
 
-// cidsEqual checks if two CID strings represent the same CID (handles v0/v1 conversion)
-func cidsEqual(cid1, cid2 string) (bool, error) {
-	decoded1, err1 := goCid.Decode(cid1)
-	decoded2, err2 := goCid.Decode(cid2)
-	if err1 != nil || err2 != nil {
-		return false, fmt.Errorf("failed to decode CIDs: %v, %v", err1, err2)
-	}
-	// Convert both to v1 for comparison
-	v1Cid1 := toCIDV1(decoded1)
-	v1Cid2 := toCIDV1(decoded2)
-	if v1Cid1 == goCid.Undef || v1Cid2 == goCid.Undef {
-		return false, fmt.Errorf("unsupported CID version")
-	}
-	// Compare the byte representations
-	return v1Cid1.Equals(v1Cid2), nil
-}
 
 // PortalPinning wraps Portal SDK pinning operations
 type PortalPinning struct {
@@ -218,7 +188,7 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 		var targetOp *account.Operation
 		for _, op := range operations {
 			if op.Cid != nil {
-				equal, err := cidsEqual(*op.Cid, cid)
+				equal, err := CIDsEqual(*op.Cid, cid)
 				if err != nil {
 					continue
 				}

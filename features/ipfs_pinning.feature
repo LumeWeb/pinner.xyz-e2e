@@ -12,8 +12,8 @@ Feature: IPFS Pinning
   Scenario: User pins an existing IPFS CID
     Given the user has an IPFS CID
     When the user starts pinning the IPFS CID
-    And the IPFS pin reaches pinned status
     And the operation completes
+    And the IPFS pin reaches pinned status
     Then the IPFS pin is created successfully
 
   @ipfs-list-pins
@@ -33,8 +33,8 @@ Feature: IPFS Pinning
   Scenario: User replaces an IPFS pin with new content
     Given the user has a pinned IPFS CID
     When the new IPFS CID is pinned
-    And the IPFS pin reaches pinned status
     And the operation completes
+    And the IPFS pin reaches pinned status
     Then the old CID is no longer pinned
 
 

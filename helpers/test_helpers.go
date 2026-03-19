@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"reflect"
@@ -12,7 +11,7 @@ import (
 
 	account "go.lumeweb.com/portal-sdk"
 	goCid "github.com/ipfs/go-cid"
-	mh "github.com/multiformats/go-multihash"
+	"go.lumeweb.com/ipfs-content/encoding"
 
 	"github.com/go-faker/faker/v4"
 	"github.com/pquerna/otp/totp"
@@ -244,22 +243,25 @@ func GenerateLargeTestFileOnDisk(sizeBytes int64, filename string) (string, erro
 	return tmpFile.Name(), nil
 }
 
-// ComputeCIDFromContent computes the IPFS CID for given content using go-cid
-// Used for integrity verification - the CID IS the hash of content in IPFS
-func ComputeCIDFromContent(content []byte) (string, error) {
-	// Compute SHA-256 hash of content
-	hash := sha256.Sum256(content)
+// CIDsEqual checks if two CID strings represent the same CID (handles v0/v1 conversion)
+// Use this when comparing CIDs instead of simple string comparison.
+// Uses ipfs-content/encoding library for normalization.
+func CIDsEqual(cid1, cid2 string) (bool, error) {
+	decoded1, err1 := goCid.Decode(cid1)
+	decoded2, err2 := goCid.Decode(cid2)
+	if err1 != nil || err2 != nil {
+		return false, fmt.Errorf("failed to decode CIDs: %v, %v", err1, err2)
+	}
+	// Use ipfs-content library to normalize both CIDs to v1
+	// This handles CIDv0/CIDv1 conversion properly
+	v1Cid1 := encoding.ToV1(decoded1)
+	v1Cid2 := encoding.ToV1(decoded2)
 	
-	// Create multihash from SHA-256 hash
-	multihash, err := mh.Encode(hash[:], mh.SHA2_256)
-	if err != nil {
-		return "", fmt.Errorf("failed to create multihash: %w", err)
+	if v1Cid1 == goCid.Undef || v1Cid2 == goCid.Undef {
+		return false, fmt.Errorf("unsupported CID version")
 	}
 	
-	// Create CID v1 with raw content type
-	cid := goCid.NewCidV1(goCid.Raw, multihash)
-	
-	return cid.String(), nil
+	return v1Cid1.Equals(v1Cid2), nil
 }
 
 
