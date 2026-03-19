@@ -175,10 +175,10 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 	// Clean up IPFS assets created during the scenario
 	cleanupIPFSAssets(ctx)
 
-	// Log scenario timing after all cleanup to avoid output interleaving
+	// Record scenario timing after all cleanup to avoid output interleaving
 	if startTime, ok := GetContextValue[time.Time](ctx, ScenarioStartTimeKey); ok {
 		elapsed := time.Since(startTime)
-		fmt.Printf("TIMING: Scenario '%s' took %v\n", sc.Name, elapsed)
+		RecordScenarioTiming(sc.Name, elapsed)
 	}
 
 	return ctx, err
