@@ -367,12 +367,12 @@ check_command() {
   fi
 }
 
-# Require npm package is available
+# Require npm package is available in registry
 # Usage: require_npm_package <package_name>
-# Returns: 0 if available, 1 if not
+# Returns: 0 if fetchable, 1 if not
 require_npm_package() {
   local package_name="$1"
-  if npm list -g "$package_name" &> /dev/null; then
+  if npm view "$package_name" --json &> /dev/null; then
     return 0
   else
     return 1
