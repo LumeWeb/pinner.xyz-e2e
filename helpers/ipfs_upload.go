@@ -4,7 +4,6 @@ import (
 	"context"
 	"io/fs"
 	"os"
-	"path/filepath"
 )
 
 // IPFSPortalUpload uploads content to the portal via the IPFS SDK upload endpoint.
@@ -40,13 +39,41 @@ func IPFSPortalUploadFromFS(ctx context.Context, filePath string, filename strin
 		return "", err
 	}
 
-	// Create a filesystem.FS from the file's directory
-	dir := filepath.Dir(filePath)
-	baseName := filepath.Base(filePath)
-	var fsys fs.FS = os.DirFS(dir)
+	// Open the file for upload
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
 
-	// Upload using the SDK's UploadFromFS method which handles CAR wrapping automatically
-	uploadResult, err := client.Upload().UploadFromFS(ctx, fsys, baseName, nil)
+	// Upload using the SDK's UploadFile method which wraps single files in filesystem
+	// UploadFile automatically wraps the file in a SingleFileFS and uploads via UploadFromFS
+	uploadResult, err := client.Upload().UploadFile(ctx, file, filename, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return uploadResult.CID, nil
+}
+
+// IPFSPortalUploadDirFromFS uploads a directory from disk to the portal via the IPFS SDK upload endpoint.
+// This creates an account operation and returns the directory CID.
+// The caller must wait for operation completion using WaitForOperation.
+// This is for testing directory uploads without holding data in memory.
+// dirPath is the path to the directory to upload.
+func IPFSPortalUploadDirFromFS(ctx context.Context, dirPath string) (string, error) {
+	// Get IPFS SDK client
+	client, err := GetIPFSClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	// Create a filesystem from the directory
+	var fsys fs.FS = os.DirFS(dirPath)
+
+	// Upload using the SDK's UploadFromFS method which handles directory CAR generation automatically
+	// UploadFromFS will detect this is a directory and wrap it propery
+	uploadResult, err := client.Upload().UploadFromFS(ctx, fsys, dirPath, nil)
 	if err != nil {
 		return "", err
 	}

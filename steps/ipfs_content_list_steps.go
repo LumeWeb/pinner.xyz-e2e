@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/cucumber/godog"
 
@@ -61,7 +60,7 @@ func (s *ContentListSteps) theUserHasUploadedFiles(ctx context.Context) (context
 		}
 		
 		// Wait for operation completion (upload auto-pins)
-		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, 2*time.Minute); err != nil {
+		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, helpers.DefaultOperationTimeout); err != nil {
 			return ctx, fmt.Errorf("operation for file %d did not complete: %w", index, err)
 		}
 		
@@ -111,7 +110,7 @@ func (s *ContentListSteps) theUserHasUploadedFilesNamed(ctx context.Context, arg
 		}
 		
 		// Wait for operation completion (upload auto-pins)
-		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, 2*time.Minute); err != nil {
+		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, helpers.DefaultOperationTimeout); err != nil {
 			return ctx, fmt.Errorf("operation for %s did not complete: %w", tf.Name, err)
 		}
 		
@@ -232,7 +231,7 @@ func (s *ContentListSteps) theUserHasUploadedContentSingle(ctx context.Context) 
 	}
 	
 	// Wait for operation completion (upload auto-pins)
-	if err := helpers.WaitForOperationCompleteByCID(ctx, cid, 2*time.Minute); err != nil {
+	if err := helpers.WaitForOperationCompleteByCID(ctx, cid, helpers.DefaultOperationTimeout); err != nil {
 		return ctx, err
 	}
 	

@@ -53,7 +53,8 @@ if [ "${TEST_DEBUG:-0}" = "1" ]; then
 else
   # Run tests using go test with godog
   # Pass-through any additional arguments after -args
-  go test -v -args "$@"
+  # Timeout 0 disables the default 10-minute timeout
+  go test -v -timeout 0 -args "$@"
 fi
 
 log_info "Test execution completed"

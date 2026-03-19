@@ -228,7 +228,7 @@ func (s *IPFSUploadSteps) theUserStartsNConcurrentFileUploads(ctx context.Contex
 	// Wait for all operations to complete and verify pins
 	// Increased timeout to 10 minutes per operation for 10 concurrent uploads
 	for i, cid := range cids {
-		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, 10*time.Minute); err != nil {
+		if err := helpers.WaitForOperationCompleteByCID(ctx, cid, helpers.DefaultOperationTimeout); err != nil {
 			return ctx, fmt.Errorf("operation for file %d failed: %w", i, err)
 		}
 	}
@@ -314,18 +314,24 @@ func (s *IPFSUploadSteps) theUserUploadsTheDirectory(ctx context.Context) (conte
 		return ctx, fmt.Errorf("no test directory found in context")
 	}
 
-	// In a real implementation, this would use IPFS directory upload
-	// For testing, we'll create a directory CID using unique content to prevent deduplication
-	uniqueContent := helpers.GenerateUniqueContent("directory placeholder")
-	_, ctx, err := helpers.IPFSUploadAndPin(ctx, []byte(uniqueContent), "")
+	// Upload the directory using IPFSPortalUploadDirFromFS
+	cid, err := helpers.IPFSPortalUploadDirFromFS(ctx, testDir)
 	if err != nil {
 		os.RemoveAll(testDir)
-		return ctx, err
+		return ctx, fmt.Errorf("failed to upload directory: %w", err)
+	}
+
+	// Wait for operation completion
+	if err := helpers.WaitForOperation(ctx, cid); err != nil {
+		os.RemoveAll(testDir)
+		return ctx, fmt.Errorf("operation did not complete: %w", err)
 	}
 
 	// Clean up temp directory
 	os.RemoveAll(testDir)
 
+	// Store the directory CID in context
+	ctx = helpers.SetCID(ctx, cid)
 	return ctx, nil
 }
 
@@ -393,8 +399,14 @@ func (s *IPFSUploadSteps) theIPFSPinReachesPinnedStatusWithinMinutes(ctx context
 	timeout := time.Duration(minutes) * time.Minute
 	startTime := time.Now()
 
+	// Create a timeout context for internal polling.
+	// We DON'T return this context to godog to avoid passing a cancelled context
+	// to the next step. Instead, we use it locally and return the original context.
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	for {
-		pinned, err := helpers.IPFSIsPinned(ctx, cidStr)
+		pinned, err := helpers.IPFSIsPinned(timeoutCtx, cidStr)
 		if err != nil {
 			return ctx, fmt.Errorf("failed to check pin status: %w", err)
 		}

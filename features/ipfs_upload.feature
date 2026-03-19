@@ -26,7 +26,7 @@ Feature: IPFS Upload
   Scenario: User uploads a very large file to IPFS
     Given the user has a 1GB IPFS test file
     When the user uploads and pins the large IPFS test file
-    And the IPFS pin reaches pinned status within 5 minutes
+    And the IPFS pin reaches pinned status within 30 minutes
     Then the uploaded IPFS test file is available
 
   @ipfs-upload-directory

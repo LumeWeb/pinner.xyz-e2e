@@ -12,7 +12,7 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/samber/lo v1.53.0
 	github.com/spf13/pflag v1.0.7
-	go.lumeweb.com/ipfs-sdk v0.1.10
+	go.lumeweb.com/ipfs-sdk v0.1.13
 	go.lumeweb.com/portal-sdk v0.1.11
 )
 

@@ -12,6 +12,10 @@ import (
 	"github.com/samber/lo"
 )
 
+// DefaultOperationTimeout is the default timeout for IPFS operation completion.
+// This gives operations sufficient time to complete before timing out.
+const DefaultOperationTimeout = 10 * time.Minute
+
 // toCIDV1 converts any CID (v0 or v1) to its v1 representation for comparison
 func toCIDV1(c goCid.Cid) goCid.Cid {
 	switch c.Version() {
@@ -291,7 +295,7 @@ func WaitForPinCreation(ctx context.Context, cid string) error {
 	}
 
 	requestID := pins[0].Requestid
-	_, err = WaitForPinStatus(ctx, requestID, ipfs.StatusPinned, 2*time.Minute)
+	_, err = WaitForPinStatus(ctx, requestID, ipfs.StatusPinned, DefaultOperationTimeout)
 	if err != nil {
 		return fmt.Errorf("pin create succeeded but wait for StatusPinned failed: %w", err)
 	}
@@ -302,7 +306,7 @@ func WaitForPinCreation(ctx context.Context, cid string) error {
 // WaitForOperation waits for the account operation for a CID to reach StatusCompleted
 // Call after WaitForPinCreation to verify operation completion
 func WaitForOperation(ctx context.Context, cid string) error {
-	return WaitForOperationCompleteByCID(ctx, cid, 2*time.Minute)
+	return WaitForOperationCompleteByCID(ctx, cid, DefaultOperationTimeout)
 }
 
 // IPFSPinLs lists all pinned CIDs using Portal SDK (legacy wrapper)

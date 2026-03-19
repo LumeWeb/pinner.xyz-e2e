@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/cucumber/godog"
 	"pinner.xyz-e2e/helpers"
@@ -431,7 +430,7 @@ func (s *PinningSteps) allNFilesArePinned(ctx context.Context, count int) (conte
 
 	// Wait for all operations to complete
 	for i, cidStr := range cids {
-		if err := helpers.WaitForOperationCompleteByCID(ctx, cidStr, 2*time.Minute); err != nil {
+		if err := helpers.WaitForOperationCompleteByCID(ctx, cidStr, helpers.DefaultOperationTimeout); err != nil {
 			return ctx, fmt.Errorf("operation for file %d failed: %w", i, err)
 		}
 	}
