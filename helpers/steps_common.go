@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/cucumber/godog"
 	account "go.lumeweb.com/portal-sdk"
@@ -76,6 +77,9 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	var recoveredErr error
 	defer panicHandler.RecoverFromPanic(&recoveredErr)
 
+	// Record scenario start time for timing metrics
+	ctx = SetContextValue(ctx, ScenarioStartTimeKey, time.Now())
+
 	if sc == nil {
 		ctx = context.WithValue(ctx, APIKeyUUIDsCleanupKey, []string{})
 		ctx = context.WithValue(ctx, TestUsersCleanupKey, []string{})
@@ -141,6 +145,12 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 
 	if sc == nil {
 		return ctx, err
+	}
+
+	// Log scenario timing
+	if startTime, ok := GetContextValue[time.Time](ctx, ScenarioStartTimeKey); ok {
+		elapsed := time.Since(startTime)
+		fmt.Printf("TIMING: Scenario '%s' took %v\n", sc.Name, elapsed)
 	}
 
 	// Clean up API keys created during the scenario

@@ -63,6 +63,7 @@ const (
 	IPFSContentListKey      contextKey = "ipfs_content_list"
 	CIDsCleanupKey          contextKey = "cids_cleanup"
 	PinRequestIDsCleanupKey contextKey = "pin_request_ids_cleanup"
+	ScenarioStartTimeKey    contextKey = "scenario_start_time"
 	CIDsListKey             contextKey = "cids_list"
 	FileNamesListKey        contextKey = "filenames_list"
 	PinListKey              contextKey = "pin_list"
