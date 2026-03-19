@@ -210,9 +210,9 @@ log_info "Running compliance tests from: $PACKAGE_PATH"
 
 # Run compliance tests with DNS preload script
 # Capture both stdout and stderr
-# Use environment variable to avoid exposing API key in process listings
+# The -s flag expects two arguments: endpoint and token (not combined)
 COMPLIANCE_OUTPUT=$(API_KEY="$API_KEY" node --require "$DNS_PRELOAD_PATH" "$PACKAGE_PATH" \
-	-s "$IPFS_ENDPOINT" \
+	-s "$IPFS_ENDPOINT" "$API_KEY" \
 	${VERBOSE_FLAG:+$VERBOSE_FLAG} \
 	${DEBUG_FLAG:+$DEBUG_FLAG} \
 	2>&1)
