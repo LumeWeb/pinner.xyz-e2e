@@ -14,7 +14,7 @@ import (
 
 // DefaultOperationTimeout is the default timeout for IPFS operation completion.
 // This gives operations sufficient time to complete before timing out.
-const DefaultOperationTimeout = 10 * time.Minute
+const DefaultOperationTimeout = 30 * time.Minute
 
 // toCIDV1 converts any CID (v0 or v1) to its v1 representation for comparison
 func toCIDV1(c goCid.Cid) goCid.Cid {
