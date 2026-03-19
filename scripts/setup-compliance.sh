@@ -67,24 +67,24 @@ fi
 log_info "npm package verified: $COMPLIANCE_PACKAGE"
 
 # Check if package is already installed
-PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE")
-
-if [ -n "$PACKAGE_PATH" ]; then
-	log_ok "Compliance package already installed: $PACKAGE_PATH"
-	exit 0
-fi
-
-# Install package globally
-log_info "Installing compliance package globally..."
-install_npm_package_globally "$COMPLIANCE_PACKAGE"
-
-# Verify installation
-PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE")
+PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE" || true)
 
 if [ -z "$PACKAGE_PATH" ]; then
-	log_error "Failed to install or locate $COMPLIANCE_PACKAGE"
-	exit 1
+	# Install package globally
+	log_info "Installing compliance package globally..."
+	install_npm_package_globally "$COMPLIANCE_PACKAGE"
+
+	# Verify installation
+	PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE" || true)
+
+	if [ -z "$PACKAGE_PATH" ]; then
+		log_error "Failed to install or locate $COMPLIANCE_PACKAGE"
+		exit 1
+	fi
+
+	log_ok "Compliance package installed successfully: $PACKAGE_PATH"
+else
+	log_ok "Compliance package already installed: $PACKAGE_PATH"
 fi
 
-log_ok "Compliance package installed successfully: $PACKAGE_PATH"
 log_ok "Compliance testing environment setup complete"

@@ -89,7 +89,7 @@ cleanup_temp_dir() {
 trap cleanup_temp_dir EXIT
 
 # Verify compliance package is installed
-PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE")
+PACKAGE_PATH=$(get_npm_package_path "$COMPLIANCE_PACKAGE" || true)
 
 if [ -z "$PACKAGE_PATH" ]; then
 	log_error "Compliance package not installed. Please run 'make setup-compliance' first."
