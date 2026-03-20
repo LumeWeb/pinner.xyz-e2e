@@ -34,7 +34,7 @@ func (s *IPFSUploadSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	// to support multi-service architecture (IPFS, Arweave, S3, etc.)
 	ctx.Step(`^the file is available on IPFS$`, s.theFileIsAvailableOnIPFS)
 	ctx.Step(`^the user starts (\d+) concurrent file uploads$`, s.theUserStartsNConcurrentFileUploads)
-	ctx.Step(`^the retrieved content matches original$`, s.theRetrievedContentMatchesOriginal)
+
 	ctx.Step(`^the user has a file with known content$`, s.theUserHasAFileWithKnownContent)
 	ctx.Step(`^the user has a (\d+)MB file with unique content$`, s.theUserHasASizeMBFile)
 	ctx.Step(`^the retrieved file CID matches original$`, s.theRetrievedFileCIDMatchesOriginal)
@@ -157,26 +157,7 @@ func (s *IPFSUploadSteps) theUserHasAFileWithKnownContent(ctx context.Context) (
 	return ctx, nil
 }
 
-func (s *IPFSUploadSteps) theRetrievedContentMatchesOriginal(ctx context.Context) (context.Context, error) {
-	// Get CID from context
-	cidStr, err := helpers.RequireCID(ctx, "content retrieval")
-	if err != nil {
-		return ctx, err
-	}
 
-	// Get original content from context
-	originalContent, ok := helpers.GetKnownContent(ctx)
-	if !ok {
-		return ctx, fmt.Errorf("no original content found in context")
-	}
-
-	// Use helper to download and verify content
-	if err := helpers.DownloadAndVerifyContent(ctx, cidStr, originalContent, "retrieved"); err != nil {
-		return ctx, err
-	}
-
-	return ctx, nil
-}
 
 // theUserStartsNConcurrentFileUploads starts N concurrent file uploads
 func (s *IPFSUploadSteps) theUserStartsNConcurrentFileUploads(ctx context.Context, count int) (context.Context, error) {

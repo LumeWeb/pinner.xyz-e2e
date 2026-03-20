@@ -54,7 +54,7 @@ Feature: IPFS Upload
     When the user uploads the IPFS file
     And the operation completes
     And the IPFS pin reaches pinned status
-    Then the retrieved content matches original
+    Then the IPFS content matches original
 
   @ipfs-large-file-integrity-tus
   Scenario: Large file uploaded via TUS maintains integrity
