@@ -6,9 +6,11 @@
 PORTAL_PORT ?= 8080
 
 # Phony targets (targets that don't represent files)
-.PHONY: help up down setup-env start-portal test clean recreate-mysql
-.PHONY: verify-services logs ps e2e setup teardown _test stop-portal ensure-portal-built
-.PHONY: start-dns stop-dns dns-logs ensure-venv
+.PHONY: help up down setup-env start-portal restart-portal stop-portal test clean recreate-mysql
+.PHONY: verify-services logs ps e2e setup teardown _test build-portal rebuild-portal
+.PHONY: start-dns stop-dns dns-logs ensure-venv setup-compliance
+.PHONY: test-tag debug-tag test-compliance
+.PHONY: _test-compliance
 
 help:
 	@echo "E2E Testing Environment Commands:"
@@ -19,6 +21,8 @@ help:
 	@echo "  make restart         - Restart all Docker services"
 	@echo "  make logs            - View service logs"
 	@echo "  make ps              - Show running containers"
+	@echo "  make wait-ipfs       - Wait for IPFS service to be ready"
+	@echo "  make verify-services - Wait for all services to be ready"
 	@echo "  make recreate-mysql  - Recreate MySQL container to wipe data"
 	@echo ""
 	@echo "DNS Server:"
@@ -28,14 +32,21 @@ help:
 	@echo "  make ensure-venv     - Ensure Python venv with dnserver is installed"
 	@echo ""
 	@echo "Portal Build & Run:"
-	@echo "  make ensure-portal-built - Ensure portal is built"
+	@echo "  make build-portal     - Build portal"
+	@echo "  make rebuild-portal   - Force rebuild of portal"
 	@echo "  make setup-env       - Generate environment variables from configs"
 	@echo "  make start-portal    - Build and run portal in background"
+	@echo "  make restart-portal  - Restart the portal"
 	@echo "  make stop-portal     - Stop running portal"
 	@echo ""
 	@echo "Testing & Cycles:"
-	@echo "  make test            - Full e2e test cycle with teardown"
+	@echo "  make test            - Full e2e test cycle with teardown (includes compliance)"
 	@echo "  make e2e             - Quick e2e test (up -> _test -> down)"
+	@echo "  make e2e-debug       - Quick e2e test in debug mode (with Delve on :2345)"
+	@echo "  make test-tag TAG=@tag  Run a single tag test (no debugger)"
+	@echo "  make debug-tag TAG=@tag Run a single tag test with Delve debugger"
+	@echo "  make test-compliance - Run IPFS compliance tests only (requires running portal)"
+	@echo "  make setup-compliance - Setup compliance testing environment (npm package)"
 	@echo "  make setup           - Setup environment (no teardown)"
 	@echo "  make teardown        - Tear down environment"
 	@echo ""
@@ -49,6 +60,14 @@ up:
 	@echo "Waiting for services to be healthy..."
 	@docker compose ps
 	@echo "[OK] Services are ready!"
+
+wait-ipfs:
+	@./scripts/wait-ipfs.sh
+
+verify-services:
+	@./scripts/wait-mysql.sh
+	@./scripts/wait-gofakes3.sh
+	@./scripts/wait-ipfs.sh
 
 recreate-mysql:
 	@echo "Recreating MySQL container to wipe data..."
@@ -82,8 +101,14 @@ ps:
 		build-portal
 	@echo "[OK] Portal built successfully"
 
-ensure-portal-built: ./dist/portal
+build-portal: ./dist/portal
 	@echo "[OK] Portal is ready"
+
+rebuild-portal:
+	@echo "Rebuilding portal..."
+	@rm -rf dist portal-plugins.yaml
+	@$(MAKE) build-portal
+	@echo "[OK] Portal rebuilt successfully"
 
 portal-plugins.yaml:
 	@./scripts/create-plugin-manifest.sh
@@ -93,21 +118,29 @@ setup-env: recreate-mysql
 	@./scripts/setup-env.sh mysql false
 	@echo "[OK] Environment configured"
 
-start-portal: ensure-portal-built setup-env
-	@echo "Starting portal..."
-	@cp ./dist/portal ./portal
-	@chmod +x ./portal
-	@./scripts/wait-mysql.sh
-	@./scripts/wait-gofakes3.sh
+start-portal: build-portal setup-env
 	@./scripts/start-portal.sh .portal.log
-	@sleep 3
-	@echo "[OK] Portal started (PID: $(cat .portal.pid))"
+	@./scripts/setup-kubo-bootstrap.sh
+
+restart-portal: stop-portal start-portal
 
 # Internal test target
 _test:
 	@echo "Running e2e tests..."
 	@./scripts/wait-portal.sh
-	@./scripts/run-tests.sh || true
+	@./scripts/run-tests.sh $(EXTRA_ARGS) || true
+
+# Internal debug test target (uses Delve debugger)
+_test-debug:
+	@echo "Running e2e tests in debug mode..."
+	@./scripts/wait-portal.sh
+	@TEST_DEBUG=1 ./scripts/run-tests.sh $(EXTRA_ARGS) || true
+
+# Internal compliance test target
+_test-compliance: setup-compliance
+	@echo "Running IPFS compliance tests..."
+	@./scripts/wait-portal.sh
+	@./scripts/run-compliance-tests.sh || true
 
 # Full Cycles
 e2e: up
@@ -115,10 +148,50 @@ e2e: up
 	@$(MAKE) _test || true
 	@$(MAKE) down || true
 
+e2e-debug: up
+	@echo "Running e2e test cycle in debug mode..."
+	@echo "Delve debugger listening on :2345"
+	@echo "Connect with: dlv connect :2345"
+	@$(MAKE) _test-debug || true
+	@$(MAKE) down || true
+
+# Run a single tag without debugger
+# Usage: make test-tag TAG=@your-tag
+test-tag:
+	@if [ -z "$(TAG)" ]; then \
+		echo "Error: TAG parameter is required"; \
+		echo "Usage: make test-tag TAG=@your-tag"; \
+		exit 1; \
+	fi
+	@echo "Running test with tag: $(TAG)"
+	$(MAKE) _test EXTRA_ARGS="--godog.tags=$(TAG)"
+
+# Run a single tag in debug mode with Delve
+# Usage: make debug-tag TAG=@your-tag
+debug-tag:
+	@if [ -z "$(TAG)" ]; then \
+		echo "Error: TAG parameter is required"; \
+		echo "Usage: make debug-tag TAG=@your-tag"; \
+		exit 1; \
+	fi
+	@echo "Running test with tag: $(TAG) in debug mode..."
+	@echo "Delve debugger listening on :2345"
+	@echo "Connect with: dlv connect :2345"
+	$(MAKE) _test-debug EXTRA_ARGS="--godog.tags=$(TAG)"
+
+# Run IPFS compliance tests only
+# Usage: make test-compliance
+# Prerequisites: Portal must be running (use 'make setup' first)
+test-compliance:
+	@echo "Running IPFS compliance tests..."
+	$(MAKE) _test-compliance || true
+
 # Full complete cycle: setup, test, teardown
-test: up ensure-portal-built setup-env start-dns start-portal
+test: up build-portal setup-env start-dns start-portal
 	@echo "Running tests against running portal..."
 	@$(MAKE) _test || true
+	@echo "Running compliance tests..."
+	@$(MAKE) _test-compliance || true
 	@echo "Tests complete, tearing down..."
 	@$(MAKE) stop-portal || true
 	@$(MAKE) stop-dns || true
@@ -126,7 +199,7 @@ test: up ensure-portal-built setup-env start-dns start-portal
 	@echo "[OK] Full cycle completed"
 
 # Setup only (no teardown)
-setup: up ensure-portal-built setup-env start-dns start-portal
+setup: up build-portal setup-env start-dns start-portal
 	@echo "[OK] Environment is ready for manual testing"
 
 # Teardown only
@@ -136,6 +209,10 @@ teardown: down stop-portal stop-dns
 # Stop portal
 stop-portal:
 	@./scripts/wait-stop-portal.sh
+
+# Compliance testing setup
+setup-compliance:
+	@./scripts/setup-compliance.sh
 
 # DNS Server Management
 ensure-venv:

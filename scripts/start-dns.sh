@@ -8,6 +8,9 @@ set -euo pipefail
 # shellcheck disable=SC1091
 . scripts/lib.sh
 
+# Load environment for DNS configuration
+load_portal_env quiet
+
 # Setup project path
 setup_project_path
 
@@ -31,7 +34,7 @@ echo $! > .dns.pid
 # Health check - wait for DNS server to be ready
 log_info "Waiting for DNS server to be ready..."
 DNS_PORT=$(echo "${DNS_RESOLVER:-127.0.0.1:5353}" | cut -d: -f2)
-if wait_with_timeout "${DNS_WAIT_TIMEOUT:-30}" "dig @127.0.0.1 -p ${DNS_PORT} account.localhost +short"; then
+if wait_with_timeout "$(get_timeout 30 DNS_WAIT_TIMEOUT)" "dig @127.0.0.1 -p ${DNS_PORT} account.localhost +short"; then
   log_ok "DNS server started (PID: $(cat .dns.pid), log: .dns.log)"
   exit 0
 else

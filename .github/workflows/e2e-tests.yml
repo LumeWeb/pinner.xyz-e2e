@@ -55,6 +55,7 @@ jobs:
         ports:
           - 3306:3306
         options: >-
+          --name mysql
           --health-cmd="mysqladmin ping"
           --health-interval=10s
           --health-timeout=5s
@@ -66,21 +67,44 @@ jobs:
           - 1025:1025
           - 1080:1080
         options: >-
+          --name maildev
           --health-cmd="wget --spider -q http://localhost:1080"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
       
       gofakes3:
-        image: johannesboyne/gofakes3:latest
+        image: ghcr.io/lumeweb/gofakes3:latest
         ports:
           - 9000:9000
+        env:
+          GOF3_BACKEND: mem
+          GOF3_INITIAL_BUCKET: fakebucket
+          GOF3_NO_INTEGRITY: "true"
+          GOF3_QUIET: "true"
+        options: >-
+          --name gofakes3
+      
+      ipfs:
+        image: ipfs/kubo:latest
+        ports:
+          - 4001:4001
+          - 5001:5001
+        env:
+          IPFS_PROFILE: "test"
+        options: >-
+          --name portal-ipfs
     
     steps:
     - name: Checkout Repo
       uses: actions/checkout@v4
       with:
         submodules: true
+    
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
 
     - name: Download Build Artifacts
       uses: actions/download-artifact@v4
@@ -88,16 +112,22 @@ jobs:
         name: portal-build
         path: dist/
     
+    - name: Wait for Services
+      run: |
+        sleep 5
+        
+        chmod +x ./scripts/wait-gofakes3.sh
+        ./scripts/wait-gofakes3.sh || echo "gofakes3 wait timeout, but may still be starting..."
+        
+        chmod +x ./scripts/wait-ipfs.sh
+        ./scripts/wait-ipfs.sh
+    
     - name: Setup Environment
       uses: ./.github/actions/setup-env
       env:
         RENTERD_URL: ${{ secrets.RENTERD_URL }}
         RENTERD_API_PASSWORD: ${{ secrets.RENTERD_API_PASSWORD }}
-    
-    - name: Wait for Services
-      run: |
-        chmod +x ./scripts/wait-gofakes3.sh
-        ./scripts/wait-gofakes3.sh
+        IPFS_API_ENDPOINT: http://localhost:5001
     
     - name: Start Portal
       uses: ./.github/actions/start-portal
@@ -111,10 +141,24 @@ jobs:
         chmod +x ./scripts/wait-portal.sh
         ./scripts/wait-portal.sh
     
+    - name: Setup Kubo Bootstrap
+      run: |
+        chmod +x ./scripts/setup-kubo-bootstrap.sh
+        ./scripts/setup-kubo-bootstrap.sh
+    
     - name: Run E2E Tests
+      id: run-e2e-tests
       run: |
         chmod +x ./scripts/run-tests.sh
         ./scripts/run-tests.sh
+    
+    - name: Run IPFS Compliance Tests
+      id: run-compliance-tests
+      run: |
+        chmod +x ./scripts/setup-compliance.sh
+        chmod +x ./scripts/run-compliance-tests.sh
+        ./scripts/setup-compliance.sh
+        ./scripts/run-compliance-tests.sh
     
     - name: Portal Logs
       if: always()
@@ -122,4 +166,20 @@ jobs:
         if [ -f ${{ steps.portal.outputs.log_file }} ]; then
           echo "=== Portal Logs ==="
           cat ${{ steps.portal.outputs.log_file }} || true
+        fi
+    
+    - name: Keep job alive for debugging
+      if: always()
+      run: |
+        # Don't sleep if tests failed
+        if [ "${{ steps.run-e2e-tests.outcome }}" == "failure" ] || \
+           [ "${{ steps.run-compliance-tests.outcome }}" == "failure" ]; then
+          echo "Tests failed, not sleeping for debugging"
+        elif [ "${{ steps.run-e2e-tests.outcome }}" == "skipped" ] || \
+               [ "${{ steps.run-compliance-tests.outcome }}" == "skipped" ]; then
+          echo "Tests skipped (setup failed), sleeping for debugging..."
+          sleep 1800
+        else
+          echo "Tests passed but job failed, sleeping for setup debugging..."
+          sleep 1800
         fi

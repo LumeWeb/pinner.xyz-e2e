@@ -18,17 +18,17 @@ type MailDevClient struct {
 
 // Email represents an email from MailDev
 type Email struct {
-	ID         string    `json:"id"`
-	Time       time.Time `json:"time"`
-	From       []Address `json:"from"`
-	To         []Address `json:"to"`
-	Subject    string    `json:"subject"`
-	Text       string    `json:"text"`
-	HTML       string    `json:"html"`
-	Headers    map[string]string `json:"headers"`
-	Read       bool      `json:"read"`
-	MessageID  string    `json:"messageId"`
-	Priority   string    `json:"priority"`
+	ID        string            `json:"id"`
+	Time      time.Time         `json:"time"`
+	From      []Address         `json:"from"`
+	To        []Address         `json:"to"`
+	Subject   string            `json:"subject"`
+	Text      string            `json:"text"`
+	HTML      string            `json:"html"`
+	Headers   map[string]string `json:"headers"`
+	Read      bool              `json:"read"`
+	MessageID string            `json:"messageId"`
+	Priority  string            `json:"priority"`
 }
 
 // Address represents an email address
@@ -46,6 +46,7 @@ func NewMailDevClient(baseURL string) *MailDevClient {
 	if baseURL == "" {
 		baseURL = GetMailDevURL()
 	}
+
 	return &MailDevClient{
 		baseURL:    baseURL,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
@@ -156,8 +157,8 @@ func (m *MailDevClient) ExtractTokenFromEmail(email *Email, pattern string) (str
 // extractToken extracts token using regex pattern
 func (m *MailDevClient) extractToken(content, pattern string) string {
 	// Try the provided pattern first
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(content)
+	regex := regexp.MustCompile(pattern)
+	matches := regex.FindStringSubmatch(content)
 	if len(matches) > 1 {
 		return matches[1]
 	}
@@ -173,8 +174,8 @@ func (m *MailDevClient) extractToken(content, pattern string) string {
 	}
 
 	for _, p := range patterns {
-		re = regexp.MustCompile(p)
-		matches = re.FindStringSubmatch(content)
+		regex = regexp.MustCompile(p)
+		matches = regex.FindStringSubmatch(content)
 		if len(matches) > 1 {
 			return matches[1]
 		}
@@ -225,7 +226,7 @@ func (m *MailDevClient) GetEmailText(email *Email) string {
 	if email.Text != "" {
 		return email.Text
 	}
-	
+
 	// Strip HTML tags if only HTML is available
 	re := regexp.MustCompile(`<[^>]*>`)
 	return re.ReplaceAllString(email.HTML, "")

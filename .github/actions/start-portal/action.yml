@@ -24,7 +24,7 @@ runs:
     - name: Start Portal
       shell: bash
       env:
-        QUIET: ${{ runner.debug == '1' && '0' || '1' }}
+        VERBOSE: ${{ runner.debug == '1' && '1' || '0' }}
         RENTERD_URL: ${{ inputs.renterd_url }}
         RENTERD_API_PASSWORD: ${{ inputs.renterd_api_password }}
       run: |

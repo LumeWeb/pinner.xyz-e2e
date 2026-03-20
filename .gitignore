@@ -23,8 +23,12 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.zed/
 *.swp
 *.swo
+
+# Test files
+*.test
 
 # OS
 .DS_Store

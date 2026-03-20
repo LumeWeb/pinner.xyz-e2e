@@ -6,6 +6,8 @@ Converts nested YAML paths like 'core.db.type' to 'CORE__DB__TYPE=value'.
 
 import sys
 import yaml
+import json
+import shlex
 
 
 def flatten_dict(d, parent_key='', sep='__', top_level=True):
@@ -31,6 +33,14 @@ def flatten_dict(d, parent_key='', sep='__', top_level=True):
     return dict(items)
 
 
+def format_value(value):
+    """Format value for environment variable output."""
+    if isinstance(value, list):
+        # Convert list to JSON array format for proper env parsing
+        return json.dumps(value)
+    return str(value)
+
+
 def yaml_to_env(yaml_file, output_file=None):
     """Read YAML file and convert to env vars."""
     with open(yaml_file, 'r') as f:
@@ -48,10 +58,24 @@ def yaml_to_env(yaml_file, output_file=None):
         # Portal expects PORTAL__ prefix for all env vars
         # Convert to uppercase and format
         env_key = key.upper()
-        # Convert value to string and quote it
-        env_value = str(value)
-        # Always quote values to ensure proper shell handling
-        env_value = f'"{env_value}"'
+        
+        # Convert value to appropriate format with safe shell quoting
+        if isinstance(value, list):
+            # Convert list to comma-separated string for array parsing
+            env_value = ','.join(shlex.quote(str(item)) for item in value)
+        elif isinstance(value, str):
+            # Quote string values safely for shell
+            env_value = shlex.quote(value)
+        elif isinstance(value, bool):
+            # Convert boolean to string
+            env_value = shlex.quote(str(value).lower())
+        elif value is None:
+            # Convert None to empty string
+            env_value = '""'
+        else:
+            # Convert other values to string
+            env_value = shlex.quote(str(value))
+        
         env_vars.append(f"export PORTAL__{env_key}={env_value}")
     
     # Output

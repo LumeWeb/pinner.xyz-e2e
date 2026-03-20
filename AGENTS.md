@@ -55,180 +55,128 @@ The portal application is built externally using `ghcr.io/lumeweb/portal-builder
 ### Shared Script Library
 
 Bash scripts in `scripts/` provide shared functionality for multiple environments:
-
-- `scripts/create-plugin-manifest.sh` - Creates the portal-plugins.yaml manifest for portal-builder
-- `scripts/setup-env.sh mysql` - Generates environment variables from YAML configs
-- `scripts/start-portal.sh [log-path]` - Starts portal in background with logging (uses PORTAL_PORT env var)
-- `scripts/lib.sh` - Shared utility library for logging, process management, and wait loops
-- `scripts/load-env.sh` - Loads environment from .env.renterd and .env (supports quiet mode)
-- `scripts/yaml_to_env.py` - Converts YAML to `PORTAL__*` env vars using double-underscore separator for nested keys
-- `scripts/wait-mysql.sh [timeout_seconds]` - Waits for MySQL to be ready for connections (uses MYSQL_WAIT_TIMEOUT env var, detects GitHub Actions vs local automatically)
-- `scripts/wait-gofakes3.sh [timeout_seconds]` - Waits for gofakes3 to be ready on port 9000 (uses GOFAKES3_WAIT_TIMEOUT env var)
-- `scripts/wait-portal.sh [timeout_seconds]` - Waits for portal HTTP endpoint to be available (uses PORTAL_PORT and PORTAL_WAIT_TIMEOUT env vars)
-- `scripts/wait-stop-portal.sh [timeout_seconds]` - Waits for portal process to stop gracefully
-- `scripts/start-dns.sh` - Starts dynamic DNS server
-- `scripts/stop-dns.sh` - Stops dynamic DNS server
-- `scripts/ensure-venv.sh` - Ensures Python venv with dnserver is installed
+- `create-plugin-manifest.sh` - Creates portal-plugins.yaml manifest
+- `setup-env.sh` - Generates env vars from YAML configs
+- `start-portal.sh` - Starts portal in background with logging
+- `lib.sh` - Shared utility library (logging, process management, wait loops)
+- `load-env.sh` - Loads env from .env.renterd and .env (quiet mode)
+- `yaml_to_env.py` - Converts YAML → `PORTAL__*` env vars (double-underscore nesting)
+- `wait-mysql.sh`, `wait-gofakes3.sh`, `wait-portal.sh`, `wait-stop-portal.sh` - Service readiness waits (configurable timeouts)
+- `start-dns.sh`, `stop-dns.sh` - DNS server control
+- `ensure-venv.sh` - Python venv with dnserver
 
 ## Common Commands
 
-### Script Execution
-
+**Service management:**
 ```bash
-# Create plugin manifest
+make up/down/restart    # Docker Compose services
+make logs, make ps      # View logs, show containers
+```
+
+**Portal lifecycle:**
+```bash
+make build-portal       # Build with plugins via portal-builder
+make setup-env          # Generate PORTAL__* env vars from YAML configs
+make start-portal       # Build and run in background
+make stop-portal        # Stop running portal
+```
+
+**Testing:**
+```bash
+make test               # Full e2e test cycle with teardown
+make e2e                # Quick cycle (up → test → down)
+go test -v              # Direct test execution
+```
+
+**Scripts:**
+```bash
 ./scripts/create-plugin-manifest.sh
-
-# Generate environment variables from configs
 ./scripts/setup-env.sh mysql
-
-# Start portal in background with logging
-# Uses PORTAL_PORT from environment (default: 8080)
-./scripts/start-portal.sh
-
-# Wait for services (all timeouts configurable via env vars)
-./scripts/wait-mysql.sh
-./scripts/wait-gofakes3.sh
-./scripts/wait-portal.sh
-./scripts/wait-stop-portal.sh 10
-
-# Start/stop DNS server
-./scripts/start-dns.sh
-./scripts/stop-dns.sh
+./scripts/start-portal.sh  # Background start with logging
+./scripts/start-dns.sh / ./scripts/stop-dns.sh
 ```
 
-### Local Development
+### Test Execution
 
+The e2e tests use godog (Cucumber for Go) with BDD scenarios in `features/` with step definitions in `steps/`. Portal loads plugins before starting HTTP server; tests wait for availability.
+
+#### IPFS E2E Test Coverage
+
+**Feature Files:**
+- `features/ipfs_upload.feature` - Tests IPFS upload functionality:
+  - Small file uploads (< 100MB) via standard HTTP
+  - Large file uploads (100MB+) via TUS resumable protocol
+  - Directory uploads with multiple files
+  - Chunking and progress tracking for TUS uploads
+
+- `features/ipfs_pinning.feature` - Tests IPFS pinning operations:
+  - Pin existing CIDs to IPFS gateway
+  - Track pin status transitions (queued → pinning → pinned/failed)
+  - Pin multiple CIDs with size estimates
+  - List pins with filtering by status/time
+  - Remove pinned content
+
+- `features/ipfs_content_list.feature` - Tests IPFS content management:
+  - List uploaded content by CID
+  - Filter content by various criteria
+  - Verify content persistence across operations
+  - Content metadata retrieval
+
+**Step Definition Files:**
+- `steps/ipfs_common_steps.go` - Shared IPFS wait/verification steps
+  - Status polling and timeout handling
+  - Cleanup management
+  - Common IPFS assertions
+
+- `steps/ipfs_upload_steps.go` - Upload-specific test logic
+  - File routing (small vs large)
+  - TUS protocol interactions
+  - Upload completion verification
+
+- `steps/ipfs_pinning_steps.go` - Pinning-specific test logic
+  - Pin request creation
+  - Status change detection
+  - Pin list retrieval and filtering
+
+- `steps/ipfs_content_list_steps.go` - Content list/filtering test logic
+  - Content listing operations
+  - Filter application
+  - Metadata validation
+
+**Full test cycle:**
 ```bash
-# Service management
-make up              # Start all Docker services
-make down            # Stop all Docker services
-make restart         # Restart all Docker services
-make logs            # View service logs
-make ps              # Show running containers
-
-# Portal build & run
-make build-portal    # Build portal with plugins using portal-builder
-make setup-env       # Generate environment variables from configs
-make start-portal    # Build and run portal in background
-make stop-portal     # Stop running portal
-
-# Testing & cycles
-make test            # Full e2e test cycle with teardown
-make e2e             # Quick e2e test (up -> _test -> down)
-make setup           # Setup environment (no teardown)
-make teardown        # Tear down environment
-
-# Cleanup
-make clean           # Clean up all resources
+make test  # Full e2e test with teardown
+make e2e   # Quick cycle (up → test → down)
 ```
 
-### Manual Testing Steps
-
+**Manual execution:**
 ```bash
-# 1. Configure environment
-cp .env.example .env
-# Edit .env with RENTERD_URL, RENTERD_API_PASSWORD
-
-# 2. Start services
-make up
-
-# 3. Build and configure
-make build-portal
-make setup-env
-
-# 4. Run portal
-# Note: This also removes stale configuration files from /etc/lumeweb/portal, $HOME/.lumeweb/portal, and ./
-make start-portal
-
-# 5. Run tests manually
-# Note: Portal HTTP endpoint may take time to start (plugins load first)
-# Source the .env file first to get environment variables
-. .env
-curl -H "Host: localhost:$PORTAL__CORE__PORT" http://localhost:$PORTAL__CORE__PORT/api/meta
-
-# Run the full e2e test suite
+make up && make build-portal && make setup-env && make start-portal
 go test -v
 
-# 6. Cleanup
-make down
-make clean
-```
-
-### Running E2E Tests Manually
-
-The e2e tests use godog (Cucumber for Go) with BDD scenarios defined in `features/` and step definitions in `steps/`.
-
-**IMPORTANT:** Always use the `run-tests.sh` script to run tests. This script loads the `.env` file before executing tests, which is required for proper SDK configuration.
-
-```bash
-# Run all e2e tests
-./scripts/run-tests.sh
-
-# Run tests with verbose output and show godog steps
-./scripts/run-tests.sh --godog.format=pretty
-
-# Run specific scenario using its tag
+# Run specific scenario (requires unique tags):
 ./scripts/run-tests.sh --godog.tags="@delete-api-key"
-
-# Run multiple scenarios with tags
-./scripts/run-tests.sh --godog.tags="@create-api-key,@delete-api-key"
-
-# Run specific feature file
-./scripts/run-tests.sh features/account_management.feature
 ```
 
-**Important:** Each scenario must have a unique tag to run it individually. Tags are defined in feature files using `@tagname` syntax. See the cucumber-testing skill documentation for tagging rules.
-
-**Note:** When using `TestMain` (as this project does), there is no direct way to run a single scenario by name. The `-run` flag filters Go test functions, not godog scenarios. To run a specific scenario, you must use tags.
-
-**Why use run-tests.sh:** The `run-tests.sh` script sources the `.env` file to load portal configuration (PORTAL__CORE__* environment variables) before running tests. Without this, the SDK cannot connect to the portal and tests will fail.
-
-**Note:** The portal must be running before executing tests. Use the full test cycle or ensure portal is started:
-
-```bash
-# Full test cycle (includes setup, portal start, tests, teardown)
-make test
-
-# Quick test cycle (up, test, down)
-make e2e
-
-# Manual test execution
-make up
-make build-portal
-make setup-env
-make start-portal
-# Wait for portal to be ready, then run tests
-go test -v
-```
+Each scenario must have a unique tag; use `@tagname` in feature files. When adding E2E tests:
+1. Add as new Makefile target or test suite
+2. Use shared scripts from `scripts/`
+3. Integrate with both Makefile and GitHub Actions workflow
 
 ### CI/CD
 
-The GitHub Actions workflow triggers on push/PR to `main` or `develop` branches. It uses:
+Triggers on push/PR to `main` or `develop`. Uses:
+- Composite actions (`.github/actions/`) → delegate to shared scripts
+- GitHub Actions services (MySQL, Maildev, Gofakes3)
+- Artifact uploads for built portal binary
 
-- Composite actions in `.github/actions/` that delegate to shared bash scripts
-- GitHub Actions services for MySQL, Maildev, and Gofakes3
-- Artifact uploads for the built portal binary
-
-**Required GitHub Secrets:**
-- `RENTERD_URL`
-- `RENTERD_API_PASSWORD`
+**Required secrets:** `RENTERD_URL`, `RENTERD_API_PASSWORD`
 
 ### Environment Differences
 
-**Local Development:**
-- Reusable environment across sessions
-- Services (MySQL, Maildev, Gofakes3) run via Docker Compose
-- `make up` / `make down` for persistent services
-- `make start-portal` / `make stop-portal` for portal lifecycle
-- Config and database state persists between runs
+**Local:** Persistent services via Docker Compose; config/db state persists between runs.
 
-**CI/CD:**
-- Fresh environment per workflow run
-- MySQL, Maildev, Gofakes3 run as GitHub Actions services (accessible via localhost)
-- Services start once per job execution
-- Parallel build and test jobs
-- No persistent state between runs
-- Artifacts uploaded/downloaded between jobs
+**CI/CD:** Fresh environment per run; GitHub Actions services with parallel build/test; no persistent state.
 
 ## Critical Guidelines
 
@@ -275,7 +223,190 @@ Never manually manipulate environment variables. Use the standard workflow:
 
 This ensures consistent configuration across all environments and prevents configuration drift.
 
+### BDD Step Design Guidelines
+
+When defining godog/Cucumber step definitions, follow these patterns to ensure maintainability and support for multi-service architecture (IPFS, Arweave, S3, etc.).
+
+#### Service-Specific vs Global Operations
+
+**Service-Specific Patterns** - Use service prefixes for operations scoped to specific storage services:
+- "the IPFS pin reaches pinned status" (NOT "the pin reaches pinned status")
+- "the user uploads a 100MB file to IPFS" (NOT "the user uploads a 100MB file")
+- "the user lists their IPFS pins" (NOT "the user lists their pins")
+
+**Why:** Future services (Arweave, S3) will conflict with generic patterns. Service-specific language prevents step registration conflicts.
+
+**Global Operations** - These don't need service prefixes because they're account-service-wide:
+- "the operation completes" - operations are global (use account service)
+
+#### Avoid Duplicate Step Patterns
+
+**First-Registered Handler Wins:** If multiple step structs register the same step regex pattern, only the first-registered handler executes. This causes silent failures.
+
+**Incorrect:**
+```go
+// ipfs_upload_steps.go
+ctx.Step(`^the pin reaches pinned status$`, s.thePinReachesPinnedStatus)
+
+// ipfs_pinning_steps.go
+ctx.Step(`^the pin reaches pinned status$`, s.thePinReachesPinnedStatus)
+// ^ Never executes - upload handler wins
+```
+
+**Correct:**
+```go
+// ipfs_common_steps.go - shared by all IPFS step files
+ctx.Step(`^the IPFS pin reaches pinned status$`, s.theIPFSPinReachesPinnedStatus)
+
+// Other IPFS step files do NOT register wait steps - they use the common ones
+```
+
+#### Common Steps File Pattern
+
+Create shared wait/verification steps in a common file instead of duplicating across multiple step structs:
+
+```go
+// steps/ipfs_common_steps.go
+ctx.Step(`^the IPFS pin reaches pinned status$`, s.theIPFSPinReachesPinnedStatus)
+ctx.Step(`^the operation completes$`, s.theOperationCompletes)
+```
+
+**Registration Order:** Register common steps before service-specific step files in `godog_test.go`:
+
+```go
+// Register common/wait steps FIRST
+ipfsCommonSteps := steps.NewIPFSCommonSteps()
+ipfsCommonSteps.InitializeScenario(ctx)
+
+// Then service-specific steps
+uploadSteps := steps.NewIPFSUploadSteps()
+uploadSteps.InitializeScenario(ctx)
+```
+
+#### Tag Naming Conventions
+
+Use service prefixes in scenario tags to support selective execution:
+
+```gherkin
+# Tags
+@ipfs-upload-small-file
+@ipfs-upload-large-file-tus
+@ipfs-upload-directory
+@ipfs-pin-existing-cid
+@ipfs-list-pins
+```
+
+**Avoid:**
+- Generic tags like `@upload-small-file`, `@list-pins` (ambiguous when adding S3/Arweave)
+
+#### Implicit vs Explicit Waits
+
+**Implicit Waits (Preferred for Upload/Pin Steps):**
+- Upload/pin steps should implicitly wait for pin and operation completion
+- Feature files stay clean without redundant wait steps
+- Example: `the user has 5 uploaded files` handles: upload → pin wait → operation wait
+
+**Explicit Waits (When Needed):**
+- Use explicit wait steps when testing granular operations
+- Only needed when scenario requires explicit timing validation
+
+#### Design for Multi-Service Expansion
+
+When adding new step patterns, consider future services:
+
+| Pattern                  | Good for Future? | Why?                         |
+|--------------------------|------------------|------------------------------|
+| `the pin reaches pinned status` | ❌ No | Conflicts with Arweave/S3 |
+| `the IPFS pin reaches pinned status` | ✅ Yes | Service-specific |
+| `the operation completes` | ✅ Yes | Global (account service) |
+
+**Example Wrong Approach:**
+```gherkin
+Scenario: User pins an existing CID
+  Given the user has a CID
+  When the user starts pinning the CID
+  And the pin reaches pinned status  # Conflicts with future services
+```
+
+**Example Correct Approach:**
+```gherkin
+Scenario: User pins an existing IPFS CID
+  Given the user has an IPFS CID
+  When the user starts pinning the IPFS CID
+  And the IPFS pin reaches pinned status  # Service-specific
+```
+
+#### Step File Structure
+
+Organize step files by functional area, making helpers accessible:
+
+```
+steps/
+├── ipfs_common_steps.go        # Shared IPFS wait/verification steps
+├── ipfs_upload_steps.go        # Upload-specific steps (uses common waits)
+├── ipfs_pinning_steps.go       # Pinning-specific steps (uses common waits)
+└── ipfs_content_list_steps.go  # Listing/filtering steps (uses common waits)
+```
+
+**Key Principles:**
+- One step registration per pattern (no duplicates)
+- Common steps in separate file, registered first
+- Service-specific patterns for service-scoped operations
+- Global patterns don't need prefixes (operations, account stuff)
+
 ## Implementation Details
+
+### IPFS Helper Utilities
+
+The E2E test suite includes comprehensive IPFS helper libraries:
+
+**Go Helpers (`helpers/`):**
+- `helpers/ipfs_common.go` - IPFS context management and state
+  - Context key constants for CID, pins, content lists
+  - State tracking for uploads, pinning operations, content filtering
+
+- `helpers/ipfs_upload.go` - IPFS upload test utilities
+  - TUS protocol upload handling
+  - File size detection and routing
+  - Upload progress tracking
+
+- `helpers/portal_pinning.go` - Portal IPFS pinning API integration
+  - Pin request management
+  - Pin status polling and verification
+  - Batch pinning operations
+
+- `helpers/kubo_api.go` - Kubo (IPFS) node API helpers
+  - Peer ID retrieval
+  - Bootstrap configuration
+  - Node operations
+
+- `helpers/ipfs_validation.go` - Content integrity validation
+  - CID computation and verification
+  - Content-hash validation
+  - IPFS path resolution
+
+- `helpers/compliance_helpers.sh` - Compliance test orchestration
+  - Compliance suite execution
+  - Result parsing and reporting
+  - Test environment setup
+
+- `helpers/logging.go` - Structured logging utilities
+  - Log level management
+  - Context-aware logging
+  - Test isolation support
+
+- `helpers/panic_recovery.go` - Panic recovery for test isolation
+  - Graceful error handling
+  - Test cleanup on failure
+  - Isolation between test scenarios
+
+**Bash Scripts (`scripts/`):**
+- `scripts/wait-ipfs.sh` - Wait for IPFS service readiness
+- `scripts/get-kubo-peer-id.sh` - Retrieve Kubo node peer ID
+- `scripts/setup-kubo-bootstrap.sh` - Configure Kubo bootstrap peers
+- `scripts/run-compliance-tests.sh` - Run IPFS compliance tests
+- `scripts/setup-compliance.sh` - Setup compliance test environment
+- `scripts/validate-compliance-setup.sh` - Validate compliance prerequisites
 
 ### Environment Variable Generation
 
@@ -374,19 +505,3 @@ MYSQL_WAIT_TIMEOUT=60 ./scripts/wait-mysql.sh
 - **`PORTAL_PORT`** - Port for portal HTTP endpoint (default: 8080)
   - Used by: `start-portal.sh`, `wait-portal.sh`
   - Set via YAML config or environment variable
-
-## Test Execution
-
-The portal HTTP endpoint requires time to become available. The portal loads all plugins before starting the HTTP server, so wait scripts ensure tests run only after readiness.
-
-**Test infrastructure:**
-- `make _test` waits for portal availability using `scripts/wait-portal.sh`
-- Tests execute godog scenarios from `features/` directory
-- Step definitions reside in `steps/` directory
-
-**Note:** A `scripts/mock-renterd.py` script exists but is not integrated into the main workflow.
-
-When adding new E2E tests:
-1. Add as a new Makefile target or separate test suite
-2. Use shared scripts from `scripts/`
-3. Integrate with both Makefile and GitHub Actions workflow

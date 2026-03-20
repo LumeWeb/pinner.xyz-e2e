@@ -157,7 +157,7 @@ func CreateValidTOTP(ctx context.Context) (string, error) {
 		}
 		return code, nil
 	}
-	
+
 	return "", fmt.Errorf("no OTP secret available in context")
 }
 

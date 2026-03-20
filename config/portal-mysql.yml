@@ -32,8 +32,21 @@ core.storage.sia:
   url: ""
   key: ""
 
+core.storage.s3:
+  buffer_bucket: "fakebucket"
+  endpoint: "http://localhost:9000"
+  region: "us-east-1"
+  access_key: "FAKEACCESSKEY"
+  secret_key: "FAKESECRETKEY"
+
+# IPFS P2P configuration - use port 4002 to avoid conflict with Kubo's port 4001
+plugin.ipfs.protocol:
+  listen_addresses:
+    - "/ip4/0.0.0.0/tcp/4002"
+    - "/ip4/0.0.0.0/udp/4002"
 
 # WARNING: This is a TEST seed for CI/CD purposes only.
 # This seed is INTENTIONALLY COMPROMISED and MUST NOT be used in production.
 # DO NOT use this seed for any real deployments or secure operations.
 core.identity: "victory coin oven horn blade sausage large jungle differ talent coral jewel"
+core.node_id: "00000000-0000-0000-0000-000000000000"

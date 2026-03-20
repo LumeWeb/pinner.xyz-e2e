@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -18,11 +19,6 @@ type AccountSteps struct {
 // NewAccountSteps creates a new AccountSteps instance
 func NewAccountSteps() *AccountSteps {
 	return &AccountSteps{}
-}
-
-// RegisterHooks registers cleanup hooks for the account steps
-func (s *AccountSteps) RegisterHooks(ctx *godog.ScenarioContext) {
-	helpers.RegisterCommonHooks(ctx)
 }
 
 // InitializeScenario registers all step definitions with godog
@@ -158,18 +154,10 @@ func (s *AccountSteps) theCreatedAPIKeyIsInTheList(ctx context.Context) (context
 		return ctx, err
 	}
 
-	// Check if the created API key is in the list
-	uuidStr := uuid
-	found := false
-	for _, apiKey := range apiKeys {
-		if apiKey.Uuid.String() == uuidStr {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return ctx, fmt.Errorf("created API key with UUID %s not found in list", uuidStr)
+	if !slices.ContainsFunc(apiKeys, func(apiKey *account.APIKey) bool {
+		return apiKey.Uuid.String() == uuid
+	}) {
+		return ctx, fmt.Errorf("created API key with UUID %s not found in list", uuid)
 	}
 
 	return ctx, nil
@@ -342,7 +330,7 @@ func (s *AccountSteps) anExistingRegisteredUserWithNAPIKeys(ctx context.Context,
 		return ctx, err
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		name := fmt.Sprintf("key-%d", i)
 		apiKey, _ := api.CreateAPIKey(ctx, name)
 		if apiKey != nil {
@@ -379,7 +367,7 @@ func (s *AccountSteps) theUserCreatesTwoAPIKeys(ctx context.Context, name1, name
 
 func (s *AccountSteps) theUserListsAPIKeysWithPageSize(ctx context.Context, pageSize int) (context.Context, error) {
 	ctx = helpers.SetPageSize(ctx, pageSize)
-	apiKeys, err := helpers.VerifyAPIKeysPagination(ctx, pageSize)
+	ctx, apiKeys, err := helpers.VerifyAPIKeysPagination(ctx, pageSize)
 	if err != nil {
 		return ctx, fmt.Errorf("pagination verification failed: %w", err)
 	}

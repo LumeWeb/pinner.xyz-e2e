@@ -12,13 +12,11 @@
 
 # Load environment if not already set
 if [ -z "${PORTAL_PORT:-}" ]; then
-  # shellcheck disable=SC1091
-  set -a; . scripts/load-env.sh; set +a
+  load_portal_env quiet
 fi
 
 PORT="${PORTAL_PORT:-8080}"
-# Use environment variable or positional argument or default to 30
-TIMEOUT="${PORTAL_WAIT_TIMEOUT:-${1:-30}}"
+TIMEOUT=$(get_timeout 30 PORTAL_WAIT_TIMEOUT "${1:-}")
 
 log_info "Waiting for HTTP endpoint to be available (plugins may take time to load)..."
 

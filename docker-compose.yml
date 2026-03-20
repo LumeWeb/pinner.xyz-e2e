@@ -34,10 +34,34 @@ services:
       - e2e-network
 
   gofakes3:
-    image: johannesboyne/gofakes3:latest
+    image: ghcr.io/lumeweb/gofakes3:latest
     container_name: portal-gofakes3
     ports:
       - "9000:9000"
+    environment:
+      GOF3_BACKEND: mem
+      GOF3_INITIAL_BUCKET: fakebucket
+      GOF3_NO_INTEGRITY: "true"
+      GOF3_QUIET: "true"
+    volumes:
+      - gofakes3-data:/data
+    networks:
+      - e2e-network
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: portal-ipfs
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+    environment:
+      - IPFS_PROFILE=test
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - e2e-network
 
@@ -52,9 +76,14 @@ services:
         condition: service_healthy
       gofakes3:
         condition: service_started
+      ipfs:
+        condition: service_healthy
     command: ["sh", "-c", "exit 0"]
     networks:
       - e2e-network
+
+volumes:
+  gofakes3-data:
 
 networks:
   e2e-network:

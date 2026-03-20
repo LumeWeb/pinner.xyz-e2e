@@ -9,14 +9,10 @@ import (
 	"github.com/cucumber/godog"
 
 	"pinner.xyz-e2e/helpers"
-	account "go.lumeweb.com/portal-sdk"
 )
 
 // PasswordResetSteps provides step definitions for password reset and email verification
-type PasswordResetSteps struct {
-	accountAPI account.AccountAPI
-	maildev    *helpers.MailDevClient
-}
+type PasswordResetSteps struct{}
 
 // NewPasswordResetSteps creates a new PasswordResetSteps instance
 func NewPasswordResetSteps() *PasswordResetSteps {
