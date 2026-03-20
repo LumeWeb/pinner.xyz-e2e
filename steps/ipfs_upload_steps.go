@@ -2,7 +2,6 @@ package steps
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"os"
 	"sync"
@@ -29,7 +28,7 @@ func (s *IPFSUploadSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the user has an IPFS directory with multiple files$`, s.theUserHasADirectoryWithMultipleFiles)
 	ctx.Step(`^the user uploads the IPFS directory$`, s.theUserUploadsTheDirectory)
 	ctx.Step(`^all files are uploaded as an IPFS directory CID$`, s.allFilesAreUploadedAsADirectoryCID)
-	ctx.Step(`^the directory structure is preserved$`, s.theDirectoryStructureIsPreserved)
+
 
 	// Note: IPFS pin and operation wait steps are now in ipfs_common_steps.go
 	// to support multi-service architecture (IPFS, Arweave, S3, etc.)
@@ -71,8 +70,9 @@ func (s *IPFSUploadSteps) theUserUploadsASmallFileWithContent(ctx context.Contex
 		return ctx, err
 	}
 	
-	// Store CID in context for verification
+	// Store CID and content in context for verification
 	ctx = helpers.SetCID(ctx, cid)
+	ctx = helpers.SetKnownContent(ctx, uniqueContent)
 	
 	return ctx, nil
 }
@@ -98,28 +98,16 @@ func (s *IPFSUploadSteps) allNFilesAreAvailable(ctx context.Context, count int) 
 // theUserUploadsAMBLargeFileToIPFS simulates uploading large file
 // Important: Uses portal upload (TUS) which creates an operation that creates the pin after completion
 func (s *IPFSUploadSteps) theUserUploadsAMBLargeFileToIPFS(ctx context.Context, sizeMB int) (context.Context, error) {
-	// Generate test content of specified size with uniqueness to prevent IPFS deduplication
+	// Use helper to generate and upload test file
+	cid, err := helpers.GenerateAndUploadTestFileContent(ctx, sizeMB, fmt.Sprintf("%dMB-test-file.bin", sizeMB))
+	if err != nil {
+		return ctx, err
+	}
+
+	// Store CID and size in context for verification
 	sizeBytes := sizeMB * 1024 * 1024
-	content := make([]byte, sizeBytes)
-	
-	// Fill with random content using crypto/rand for uniqueness across test runs
-	_, err := rand.Read(content)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to generate random content: %w", err)
-	}
-
-	// Upload via portal (TUS protocol) - creates operation which creates pin after completion
-	cid, err := helpers.IPFSPortalUpload(ctx, content, fmt.Sprintf("%dMB-test-file.bin", sizeMB))
-	if err != nil {
-		return ctx, err
-	}
-
-	// Portal uploads create an operation first; must wait for operation before checking for pin
-	if err := helpers.WaitForOperation(ctx, cid); err != nil {
-		return ctx, err
-	}
-
 	ctx = helpers.SetCID(ctx, cid)
+	ctx = helpers.SetFileSize(ctx, sizeBytes)
 	return ctx, nil
 }
 
@@ -131,7 +119,7 @@ func (s *IPFSUploadSteps) theUserHasADirectoryWithMultipleFiles(ctx context.Cont
 		return ctx, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	// Create a few test files
+	// Create a few test files with their content
 	testFiles := []struct {
 		name    string
 		content []byte
@@ -140,6 +128,14 @@ func (s *IPFSUploadSteps) theUserHasADirectoryWithMultipleFiles(ctx context.Cont
 		{"file2.txt", []byte("content 2")},
 		{"file3.txt", []byte("content 3")},
 	}
+
+	// Create expected directory entries for verification
+	var expectedEntries []helpers.DirectoryEntry
+	expectedEntries = append(expectedEntries, 
+		helpers.DirectoryEntry{Name: "file1.txt", Size: 9, IsDir: false},
+		helpers.DirectoryEntry{Name: "file2.txt", Size: 9, IsDir: false},
+		helpers.DirectoryEntry{Name: "file3.txt", Size: 9, IsDir: false},
+	)
 
 	for _, tf := range testFiles {
 		filePath := fmt.Sprintf("%s/%s", testDir, tf.name)
@@ -150,6 +146,7 @@ func (s *IPFSUploadSteps) theUserHasADirectoryWithMultipleFiles(ctx context.Cont
 	}
 
 	ctx = helpers.SetTestDirectory(ctx, testDir)
+	ctx = helpers.SetDirectoryEntries(ctx, expectedEntries)
 	return ctx, nil
 }
 
@@ -161,7 +158,23 @@ func (s *IPFSUploadSteps) theUserHasAFileWithKnownContent(ctx context.Context) (
 }
 
 func (s *IPFSUploadSteps) theRetrievedContentMatchesOriginal(ctx context.Context) (context.Context, error) {
-	// TODO: Download content from IPFS and verify it matches original bytes
+	// Get CID from context
+	cidStr, err := helpers.RequireCID(ctx, "content retrieval")
+	if err != nil {
+		return ctx, err
+	}
+
+	// Get original content from context
+	originalContent, ok := helpers.GetKnownContent(ctx)
+	if !ok {
+		return ctx, fmt.Errorf("no original content found in context")
+	}
+
+	// Use helper to download and verify content
+	if err := helpers.DownloadAndVerifyContent(ctx, cidStr, originalContent, "retrieved"); err != nil {
+		return ctx, err
+	}
+
 	return ctx, nil
 }
 
@@ -262,22 +275,29 @@ func (s *IPFSUploadSteps) theUserHasASizeMBFile(ctx context.Context, sizeMB int)
 	return ctx, nil
 }
 
-// TODO: Implement actual integrity verification by downloading content from IPFS
-// and comparing with original. Portal returns UnixFS CIDs, not raw CIDs,
-// so content-level verification requires downloading via gateway and byte-by-byte comparison.
 func (s *IPFSUploadSteps) theRetrievedFileCIDMatchesOriginal(ctx context.Context) (context.Context, error) {
 	// Verify CID was returned from upload and stored in context
 	cidStr, err := helpers.RequireCID(ctx, "CID verification")
 	if err != nil {
 		return ctx, err
 	}
-	
+
 	// Verify CID is not empty
 	if cidStr == "" {
 		return ctx, fmt.Errorf("CID is empty after upload")
 	}
-	
-	
+
+	// Get original content from context
+	originalContent, ok := helpers.GetKnownContent(ctx)
+	if !ok {
+		return ctx, fmt.Errorf("no original content found in context")
+	}
+
+	// Use helper to download and verify content
+	if err := helpers.DownloadAndVerifyContent(ctx, cidStr, originalContent, "retrieved file"); err != nil {
+		return ctx, err
+	}
+
 	return ctx, nil
 }
 
@@ -318,15 +338,6 @@ func (s *IPFSUploadSteps) allFilesAreUploadedAsADirectoryCID(ctx context.Context
 	return ctx, nil
 }
 
-// theDirectoryStructureIsPreserved verifies directory structure
-func (s *IPFSUploadSteps) theDirectoryStructureIsPreserved(ctx context.Context) (context.Context, error) {
-	// For now, just verify we have a CID
-	_, err := helpers.RequireCID(ctx, "directory structure")
-	if err != nil {
-		return ctx, err
-	}
-	return ctx, nil
-}
 // theUserHasASizeGBIPFSTestFile creates test data of specified size in GB on disk
 // Stores file path in context for upload. Caller is responsible for cleanup.
 func (s *IPFSUploadSteps) theUserHasASizeGBIPFSTestFile(ctx context.Context, sizeGB int) (context.Context, error) {
