@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	ipfs_sdk "go.lumeweb.com/ipfs-sdk"
 )
@@ -184,7 +185,7 @@ func RequireIPNSKeyID(ctx context.Context, contextDesc string) (int, error) {
 }
 
 // ResolveIPNSNameViaPortal resolves an IPNS name and validates the result
-// Returns the resolved CID or an error
+// Returns the resolved CID (without /ipfs/ prefix) or an error
 func ResolveIPNSNameViaPortal(ctx context.Context, ipnsName string) (string, error) {
 	resolve, err := ResolveIPNSName(ctx, ipnsName)
 	if err != nil {
@@ -195,7 +196,14 @@ func ResolveIPNSNameViaPortal(ctx context.Context, ipnsName string) (string, err
 		return "", fmt.Errorf("IPNS name %s could not be resolved", ipnsName)
 	}
 
-	return resolve.Value, nil
+	cid := resolve.Value
+
+	// Strip /ipfs/ prefix if present for consistency
+	if strings.HasPrefix(cid, "/ipfs/") {
+		cid = cid[6:]
+	}
+
+	return cid, nil
 }
 
 // StoreKeyInfoInContext stores IPNS key information (ID, name, peer ID) in context

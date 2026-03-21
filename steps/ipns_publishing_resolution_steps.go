@@ -23,8 +23,12 @@ func (s *IPNSPublishingResolutionSteps) InitializeScenario(ctx *godog.ScenarioCo
 	ctx.Step(`^the user republishes all IPNS entries$`, s.theUserRepublishesAllIPNSEntries)
 	ctx.Step(`^the user resolves IPNS name "([^"]*)"$`, s.theUserResolvesIPNSName)
 	ctx.Step(`^the resolved CID is "([^"]*)"$`, s.theResolvedCIDIs)
+	
+	// Key creation - shared helper used by both "has IPNS key" and "has IPNS key in Portal" steps
 	ctx.Step(`^the user has an IPNS key named "([^"]*)"$`, s.theUserHasAnIPNSKey)
-	ctx.Step(`^the user has an IPNS CID "([^"]*)"$`, s.theUserHasAnIPNSCID)
+	ctx.Step(`^the user has an IPNS key named "([^"]*)" in the Portal$`, s.theUserHasAnIPNSKey)
+	
+	ctx.Step(`^the user has an IPNS CID "([^"]*)"`, s.theUserHasAnIPNSCID)
 	ctx.Step(`^the publish operation succeeds$`, s.thePublishOperationSucceeds)
 	
 	// Cross-node verification steps
@@ -32,14 +36,10 @@ func (s *IPNSPublishingResolutionSteps) InitializeScenario(ctx *godog.ScenarioCo
 	ctx.Step(`^Kubo can resolve the IPNS name$`, s.kuboCanResolveTheIPNSName)
 	ctx.Step(`^both resolve to "([^"]*)"$`, s.bothResolveToCID)
 	
-	// Kubo-based IPNS steps
-	ctx.Step(`^the user has an IPNS CID "([^"]*)" in Kubo$`, s.theUserHasIPNSCIDInKubo)
-	ctx.Step(`^the CID is published to the IPNS key "([^"]*)" via Kubo$`, s.theCIDIsPublishedToIPNSKeyViaKubo)
-	ctx.Step(`^the user resolves IPNS name published by Kubo via Portal$`, s.theUserResolvesIPNSNamePublishedByKuboViaPortal)
-	
-	// Portal key creation and resolution steps
-	ctx.Step(`^the user has an IPNS key named "([^"]*)" in the Portal$`, s.theUserHasAnIPNSKeyInPortal)
+	// Resolution steps - delegates to shared helper for actual resolution logic
+	ctx.Step(`^the user resolves the IPNS name published by Portal$`, s.theUserResolvesIPNSNameViaPortal)
 	ctx.Step(`^the user resolves the IPNS name via Portal$`, s.theUserResolvesIPNSNameViaPortal)
+	
 	ctx.Step(`^the IPNS name exists in the Portal$`, s.theIPNSNameExistsInPortal)
 	ctx.Step(`^the republish operation succeeds$`, s.theRepublishOperationSucceeds)
 }
@@ -60,7 +60,6 @@ func (s *IPNSPublishingResolutionSteps) theUserPublishesCIDToTheIPNSKey(ctx cont
 		return ctx, fmt.Errorf("publish operation returned nil response")
 	}
 
-	// Store the published CID and IPNS name in context for verification
 	ctx = helpers.SetIPNSPublishCID(ctx, cid)
 	if publish.Name != "" {
 		ctx = helpers.SetIPNSIPNSName(ctx, publish.Name)
@@ -71,36 +70,30 @@ func (s *IPNSPublishingResolutionSteps) theUserPublishesCIDToTheIPNSKey(ctx cont
 
 // theIPNSNameResolvesToThePublishedCID verifies that the IPNS name resolves to the CID that was published
 func (s *IPNSPublishingResolutionSteps) theIPNSNameResolvesToThePublishedCID(ctx context.Context) (context.Context, error) {
-	// Get the published CID from context
-	publishedCID, ok := helpers.GetIPNSPublishCID(ctx)
-	if !ok {
-		return ctx, fmt.Errorf("no published CID found in context")
-	}
-
-	// Get the IPNS name from context
 	ipnsName, ok := helpers.GetIPNSIPNSName(ctx)
 	if !ok {
 		return ctx, fmt.Errorf("no IPNS name found in context")
 	}
 
-	// Resolve the IPNS name
+	publishedCID, ok := helpers.GetIPNSPublishCID(ctx)
+	if !ok {
+		return ctx, fmt.Errorf("no published CID found in context")
+	}
+
 	resolve, err := helpers.ResolveIPNSName(ctx, ipnsName)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to resolve IPNS name %s: %w", ipnsName, err)
 	}
 
-	if resolve == nil {
+	if resolve == nil || resolve.Value == "" {
 		return ctx, fmt.Errorf("IPNS name %s could not be resolved", ipnsName)
 	}
 
-	// Verify the resolved CID matches the published CID
 	if resolve.Value != publishedCID {
 		return ctx, fmt.Errorf("IPNS name %s resolved to %s, but published CID was %s", ipnsName, resolve.Value, publishedCID)
 	}
 
-	// Store the resolved CID in context for later verification
 	ctx = helpers.SetIPNSResolvedCID(ctx, resolve.Value)
-
 	return ctx, nil
 }
 
@@ -121,31 +114,30 @@ func (s *IPNSPublishingResolutionSteps) theUserResolvesIPNSName(ctx context.Cont
 		return ctx, fmt.Errorf("failed to resolve IPNS name %s: %w", name, err)
 	}
 
-	if resolve == nil {
+	if resolve == nil || resolve.Value == "" {
 		return ctx, fmt.Errorf("IPNS name %s could not be resolved", name)
 	}
 
-	// Store the resolved IPNS name in context
 	ctx = helpers.SetIPNSIPNSName(ctx, name)
-
 	return ctx, nil
 }
 
 // theResolvedCIDIs verifies that the resolved CID matches the expected value
 func (s *IPNSPublishingResolutionSteps) theResolvedCIDIs(ctx context.Context, expectedCID string) (context.Context, error) {
-	publishedCID, ok := helpers.GetIPNSPublishCID(ctx)
+	resolvedCID, ok := helpers.GetIPNSResolvedCID(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("no published CID found in context")
+		return ctx, fmt.Errorf("no resolved CID found in context")
 	}
 
-	if publishedCID != expectedCID {
-		return ctx, fmt.Errorf("resolved CID is %s, expected %s", publishedCID, expectedCID)
+	if resolvedCID != expectedCID {
+		return ctx, fmt.Errorf("resolved CID is %s, expected %s", resolvedCID, expectedCID)
 	}
 
 	return ctx, nil
 }
 
 // theUserHasAnIPNSKey creates an IPNS key and stores it in context
+// Used by both "has IPNS key" and "has IPNS key in Portal" scenario steps
 func (s *IPNSPublishingResolutionSteps) theUserHasAnIPNSKey(ctx context.Context, name string) (context.Context, error) {
 	ctx, key, err := helpers.CreateIPNSKey(ctx, name)
 	if err != nil {
@@ -167,9 +159,6 @@ func (s *IPNSPublishingResolutionSteps) theUserHasAnIPNSCID(ctx context.Context,
 
 // thePublishOperationSucceeds is a placeholder for future publish operation verification
 func (s *IPNSPublishingResolutionSteps) thePublishOperationSucceeds(ctx context.Context) (context.Context, error) {
-	// Most IPNS publish operations complete immediately
-	// Future implementation may add retry logic for distributed propagation
-	// This step acts as a verification hook
 	return ctx, nil
 }
 
@@ -180,7 +169,6 @@ func (s *IPNSPublishingResolutionSteps) kuboCanResolveTheIPNSName(ctx context.Co
 		return ctx, fmt.Errorf("no IPNS name found in context")
 	}
 
-	// Try to resolve via Kubo
 	resolvedCID, err := helpers.KuboResolveIPNS(ctx, ipnsName)
 	if err != nil {
 		return ctx, fmt.Errorf("Kubo failed to resolve IPNS name %s: %w", ipnsName, err)
@@ -190,9 +178,7 @@ func (s *IPNSPublishingResolutionSteps) kuboCanResolveTheIPNSName(ctx context.Co
 		return ctx, fmt.Errorf("Kubo resolved to empty CID for IPNS name %s", ipnsName)
 	}
 
-	// Store Kubo-resolved CID for comparison
 	ctx = helpers.SetIPNSResolvedCID(ctx, resolvedCID)
-
 	return ctx, nil
 }
 
@@ -203,7 +189,6 @@ func (s *IPNSPublishingResolutionSteps) theIPNSNameIsResolvableByPortal(ctx cont
 		return ctx, fmt.Errorf("no IPNS name found in context")
 	}
 
-	// Try to resolve via Portal
 	resolve, err := helpers.ResolveIPNSName(ctx, ipnsName)
 	if err != nil {
 		return ctx, fmt.Errorf("Portal failed to resolve IPNS name %s: %w", ipnsName, err)
@@ -218,97 +203,20 @@ func (s *IPNSPublishingResolutionSteps) theIPNSNameIsResolvableByPortal(ctx cont
 
 // bothResolveToCID verifies that both Portal and Kubo resolve to the same CID
 func (s *IPNSPublishingResolutionSteps) bothResolveToCID(ctx context.Context, expectedCID string) (context.Context, error) {
-	// Compare Kubo-resolved CID with expected CID
-	kuboCID, ok := helpers.GetIPNSResolvedCID(ctx)
+	resolvedCID, ok := helpers.GetIPNSResolvedCID(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("no Kubo-resolved CID found in context")
+		return ctx, fmt.Errorf("no resolved CID found in context")
 	}
 
-	if kuboCID != expectedCID {
-		return ctx, fmt.Errorf("Kubo resolved CID %s does not match expected %s", kuboCID, expectedCID)
+	if resolvedCID != expectedCID {
+		return ctx, fmt.Errorf("resolved CID %s does not match expected %s", resolvedCID, expectedCID)
 	}
 
 	return ctx, nil
-}
-
-// theUserHasIPNSCIDInKubo stores a CID in context that should be published via Kubo
-func (s *IPNSPublishingResolutionSteps) theUserHasIPNSCIDInKubo(ctx context.Context, cid string) (context.Context, error) {
-	ctx = helpers.SetIPNSPublishCID(ctx, cid)
-	return ctx, nil
-}
-
-// theCIDIsPublishedToIPNSKeyViaKubo publishes a CID to an IPNS key using Kubo
-func (s *IPNSPublishingResolutionSteps) theCIDIsPublishedToIPNSKeyViaKubo(ctx context.Context, keyName string) (context.Context, error) {
-	cid, ok := helpers.GetIPNSPublishCID(ctx)
-	if !ok {
-		return ctx, fmt.Errorf("no CID found in context")
-	}
-
-	// Check if the key exists in Kubo, create it if not
-	keys, err := helpers.KuboIPNSListKeys(ctx)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to list Kubo IPNS keys: %w", err)
-	}
-
-	keyExists := false
-	for _, existingKey := range keys {
-		if existingKey == keyName {
-			keyExists = true
-			break
-		}
-	}
-
-	// Create the key if it doesn't exist
-	if !keyExists {
-		_, err = helpers.KuboIPNSCreateKey(ctx, keyName)
-		if err != nil {
-			return ctx, fmt.Errorf("failed to create IPNS key %s in Kubo: %w", keyName, err)
-		}
-	}
-
-	ipnsPath, err := helpers.KuboIPNSPublishPath(ctx, keyName, cid)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to publish CID %s to IPNS key %s via Kubo: %w", cid, keyName, err)
-	}
-
-	ipnsName := helpers.ExtractIPNSName(ipnsPath)
-	ctx = helpers.SetIPNSIPNSName(ctx, ipnsName)
-
-	return ctx, nil
-}
-
-// theUserResolvesIPNSNamePublishedByKuboViaPortal resolves an IPNS name that was published by Kubo
-// Uses Portal's resolution API to verify cross-node resolution
-func (s *IPNSPublishingResolutionSteps) theUserResolvesIPNSNamePublishedByKuboViaPortal(ctx context.Context) (context.Context, error) {
-	ipnsName, ok := helpers.GetIPNSIPNSName(ctx)
-	if !ok {
-		return ctx, fmt.Errorf("no IPNS name found in context")
-	}
-
-	cid, err := helpers.ResolveIPNSNameViaPortal(ctx, ipnsName)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to resolve IPNS name via Portal: %w", err)
-	}
-
-	ctx = helpers.SetIPNSResolvedCID(ctx, cid)
-	return ctx, nil
-}
-
-// theUserHasAnIPNSKeyInPortal creates an IPNS key in the Portal and stores it in context
-func (s *IPNSPublishingResolutionSteps) theUserHasAnIPNSKeyInPortal(ctx context.Context, name string) (context.Context, error) {
-	ctx, key, err := helpers.CreateIPNSKey(ctx, name)
-	if err != nil {
-		return ctx, err
-	}
-
-	if key == nil {
-		return ctx, fmt.Errorf("IPNS key creation returned nil response")
-	}
-
-	return helpers.StoreKeyInfoInContext(ctx, key), nil
 }
 
 // theUserResolvesIPNSNameViaPortal resolves an IPNS name via Portal
+// Shared by "resolves IPNS name published by Portal" and "resolves IPNS name via Portal" scenario steps
 func (s *IPNSPublishingResolutionSteps) theUserResolvesIPNSNameViaPortal(ctx context.Context) (context.Context, error) {
 	ipnsName, ok := helpers.GetIPNSIPNSName(ctx)
 	if !ok {
@@ -317,7 +225,7 @@ func (s *IPNSPublishingResolutionSteps) theUserResolvesIPNSNameViaPortal(ctx con
 
 	cid, err := helpers.ResolveIPNSNameViaPortal(ctx, ipnsName)
 	if err != nil {
-		return ctx, err
+		return ctx, fmt.Errorf("failed to resolve IPNS name via Portal: %w", err)
 	}
 
 	ctx = helpers.SetIPNSResolvedCID(ctx, cid)
@@ -340,20 +248,15 @@ func (s *IPNSPublishingResolutionSteps) theIPNSNameExistsInPortal(ctx context.Co
 }
 
 // theRepublishOperationSucceeds verifies that the IPNS republish operation completed successfully
-// The actual republish is performed in the "the user republishes all IPNS entries" step
-// This step acts as a verification hook and can be extended with retry checks or status verification
 func (s *IPNSPublishingResolutionSteps) theRepublishOperationSucceeds(ctx context.Context) (context.Context, error) {
-	// Republish is synchronous; reaching here means it succeeded
-	// Verify the account has IPNS keys available for republishing
 	keys, err := helpers.ListIPNSKeys(ctx)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to verify IPNS keys list: %w", err)
 	}
-	
-	// Warn if no keys exist but don't fail; the service may handle gracefully
+
 	if len(keys) == 0 {
 		return ctx, fmt.Errorf("no IPNS keys available to republish")
 	}
-	
+
 	return ctx, nil
 }

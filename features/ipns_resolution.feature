@@ -8,11 +8,12 @@ Feature: IPNS Resolution
     Given an existing registered user
     And the user is logged in
 
-  @ipns-resolve-kubo-published
-  Scenario: User resolves IPNS name published via Kubo
-    Given the user has an IPNS CID "bafkreihsg6m2x7u2g5v7ffufx3eb5vkcjaxqtohnwxizovtcqnpm3xtp2m" in Kubo
-    And the CID is published to the IPNS key "blog" via Kubo
-    When the user resolves IPNS name published by Kubo via Portal
+  @ipns-resolve-portal-published
+  Scenario: User resolves IPNS name published via Portal
+    Given the user has an IPNS key named "blog" in the Portal
+    And the user has an IPNS CID "bafkreihsg6m2x7u2g5v7ffufx3eb5vkcjaxqtohnwxizovtcqnpm3xtp2m"
+    And the user publishes CID "bafkreihsg6m2x7u2g5v7ffufx3eb5vkcjaxqtohnwxizovtcqnpm3xtp2m" to the IPNS key
+    When the user resolves the IPNS name published by Portal
     Then the resolved CID is "bafkreihsg6m2x7u2g5v7ffufx3eb5vkcjaxqtohnwxizovtcqnpm3xtp2m"
 
   @ipns-create-key-portal-resolve
