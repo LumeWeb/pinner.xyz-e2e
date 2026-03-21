@@ -171,8 +171,8 @@ jobs:
     - name: Keep job alive for debugging
       if: always()
       run: |
-        # Don't sleep if tests failed (for immediate failure visibility)
-        # Only sleep if both tests succeeded OR tests were skipped (for debugging)
+        # Sleep for CI debugging when tests are not fully successful
+        # Only exit immediately when both e2e and compliance tests pass
         if ! { [ "${{ steps.run-e2e-tests.outcome }}" == "success" ] && \
                [ "${{ steps.run-compliance-tests.outcome }}" == "success" ]; } then
           echo "Tests not fully successful (failed: e2e=${{ steps.run-e2e-tests.outcome }}, compliance=${{ steps.run-compliance-tests.outcome }}), sleeping for debugging..."
