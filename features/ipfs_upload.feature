@@ -14,6 +14,7 @@ Feature: IPFS Upload
     And the operation completes
     And the IPFS pin reaches pinned status
     Then a valid IPFS CID is returned
+    And the IPFS content matches original
 
   @ipfs-upload-large-file-tus
   Scenario: User uploads a large file to IPFS
@@ -21,6 +22,7 @@ Feature: IPFS Upload
     And the operation completes
     And the IPFS pin reaches pinned status
     Then the file is available on IPFS
+    And the IPFS file size matches original
 
   @ipfs-upload-very-large
   Scenario: User uploads a very large file to IPFS
@@ -44,6 +46,7 @@ Feature: IPFS Upload
     And all operations complete
     And all IPFS pins reach pinned status
     Then all 10 files are available
+    And all 10 IPFS files are retrievable
 
   @ipfs-upload-content-integrity
   Scenario: Uploaded content matches original
@@ -51,7 +54,7 @@ Feature: IPFS Upload
     When the user uploads the IPFS file
     And the operation completes
     And the IPFS pin reaches pinned status
-    Then the retrieved content matches original
+    Then the IPFS content matches original
 
   @ipfs-large-file-integrity-tus
   Scenario: Large file uploaded via TUS maintains integrity

@@ -71,6 +71,8 @@ const (
 	TestDirectoryKey        contextKey = "test_directory"
 	PinnedStatusKey         contextKey = "pinned_status"
 	TestFilePathKey         contextKey = "test_file_path"
+	FileSizeKey             contextKey = "file_size"
+	DirectoryEntriesKey     contextKey = "directory_entries"
 )
 
 // =============================================================================
@@ -821,4 +823,31 @@ func SetKnownContent(ctx context.Context, content string) context.Context {
 // GetKnownContent retrieves stored content from context
 func GetKnownContent(ctx context.Context) (string, bool) {
 	return GetContextValue[string](ctx, contextKey("known_content"))
+}
+
+// SetFileSize stores file size in context for verification
+func SetFileSize(ctx context.Context, size int) context.Context {
+	return SetContextValue(ctx, FileSizeKey, size)
+}
+
+// GetFileSize retrieves file size from context
+func GetFileSize(ctx context.Context) (int, bool) {
+	return GetContextValue[int](ctx, FileSizeKey)
+}
+
+// DirectoryEntry represents a file/directory entry in a directory structure
+type DirectoryEntry struct {
+	Name  string
+	Size  int // Use int instead of int64 for easier use with literals
+	IsDir bool
+}
+
+// SetDirectoryEntries stores the expected directory structure for verification
+func SetDirectoryEntries(ctx context.Context, entries []DirectoryEntry) context.Context {
+	return SetContextValue(ctx, DirectoryEntriesKey, entries)
+}
+
+// GetDirectoryEntries retrieves the expected directory structure from context
+func GetDirectoryEntries(ctx context.Context) ([]DirectoryEntry, bool) {
+	return GetContextValue[[]DirectoryEntry](ctx, DirectoryEntriesKey)
 }

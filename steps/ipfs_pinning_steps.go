@@ -49,12 +49,15 @@ func (s *PinningSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 
 // theIPFSPinReachesPinnedStatusWithinMinutes verifies pin completes within time limit
 func (s *PinningSteps) theUserHasACID(ctx context.Context) (context.Context, error) {
-	cidStr, err := helpers.KuboAdd(ctx, []byte("test content"))
+	testContent := []byte("test content")
+	
+	cidStr, err := helpers.KuboAdd(ctx, testContent)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to generate test CID: %w", err)
 	}
 
 	ctx = helpers.SetCID(ctx, cidStr)
+	ctx = helpers.SetKnownContent(ctx, string(testContent))
 	return ctx, nil
 }
 
@@ -434,12 +437,6 @@ func (s *PinningSteps) allNFilesArePinned(ctx context.Context, count int) (conte
 		}
 	}
 
-	return ctx, nil
-}
-
-// theNewCIDIsPinnedWithCorrectContent verifies new pin has correct content
-func (s *PinningSteps) theNewCIDIsPinnedWithCorrectContent(ctx context.Context) (context.Context, error) {
-	// TODO: Download content from IPFS and verify it matches expected content
 	return ctx, nil
 }
 

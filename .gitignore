@@ -8,6 +8,7 @@
 # Build artifacts
 dist/
 /portal
+portal-mysql.yml
 
 # Python
 __pycache__/
