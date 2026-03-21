@@ -131,14 +131,25 @@ func (s *IPNSCommonSteps) theIPNSKeyHasIPNSName(ctx context.Context, expectedIPN
 
 // allIPNSKeysHaveValidPeerIDs verifies that multiple IPNS keys all have valid peer IDs
 func (s *IPNSCommonSteps) allIPNSKeysHaveValidPeerIDs(ctx context.Context, count int) (context.Context, error) {
-	// This is a placeholder for scenarios that test multiple IPNS keys
-	// In the future, we may need to track multiple IPsNS keys in context
-	
-	// For now, just verify the current key has a valid peer ID
-	// Similar to the pattern used for IPFS files
-	_, err := s.theIPNSKeyHasValidPeerID(ctx)
+	// Get all IPNS keys for the authenticated user
+	keys, err := helpers.ListIPNSKeys(ctx)
 	if err != nil {
 		return ctx, err
+	}
+
+	// Validate the expected number of keys exist
+	if len(keys) != count {
+		return ctx, fmt.Errorf("expected %d IPNS keys, found %d", count, len(keys))
+	}
+
+	// Validate each key has a valid peer ID
+	for _, key := range keys {
+		if key.PeerId == "" {
+			return ctx, fmt.Errorf("IPNS key %s has empty peer ID", key.Name)
+		}
+		if len(key.PeerId) < 2 {
+			return ctx, fmt.Errorf("IPNS peer ID %s is too short", key.PeerId)
+		}
 	}
 
 	return ctx, nil

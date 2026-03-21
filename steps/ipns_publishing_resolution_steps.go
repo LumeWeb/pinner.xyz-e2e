@@ -278,16 +278,16 @@ func (s *IPNSPublishingResolutionSteps) theCIDIsPublishedToIPNSKeyViaKubo(ctx co
 }
 
 // theUserResolvesIPNSNamePublishedByKuboViaPortal resolves an IPNS name that was published by Kubo
-// Uses Kubo's resolution API since the IPNS entry was created externally
+// Uses Portal's resolution API to verify cross-node resolution
 func (s *IPNSPublishingResolutionSteps) theUserResolvesIPNSNamePublishedByKuboViaPortal(ctx context.Context) (context.Context, error) {
 	ipnsName, ok := helpers.GetIPNSIPNSName(ctx)
 	if !ok {
 		return ctx, fmt.Errorf("no IPNS name found in context")
 	}
 
-	cid, err := helpers.KuboResolveIPNS(ctx, ipnsName)
+	cid, err := helpers.ResolveIPNSNameViaPortal(ctx, ipnsName)
 	if err != nil {
-		return ctx, fmt.Errorf("failed to resolve IPNS name published by Kubo: %w", err)
+		return ctx, fmt.Errorf("failed to resolve IPNS name via Portal: %w", err)
 	}
 
 	ctx = helpers.SetIPNSResolvedCID(ctx, cid)
@@ -352,7 +352,7 @@ func (s *IPNSPublishingResolutionSteps) theRepublishOperationSucceeds(ctx contex
 	
 	// Warn if no keys exist but don't fail; the service may handle gracefully
 	if len(keys) == 0 {
-		fmt.Printf("[WARN] Account has no IPNS keys to republish - republish operation still succeeded (expected for empty accounts)")
+		return ctx, fmt.Errorf("no IPNS keys available to republish")
 	}
 	
 	return ctx, nil

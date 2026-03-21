@@ -164,10 +164,7 @@ func KuboCat(ctx context.Context, cidString string) (string, error) {
 // KuboResolveIPNS resolves an IPNS name via Kubo's Name API
 // Returns the resolved CID or an error
 func KuboResolveIPNS(ctx context.Context, ipnsName string) (string, error) {
-	panicHandler := NewPanicHandler("").WithName("KuboResolveIPNS")
-	defer panicHandler.RecoverFromPanic(nil)
-
-	client, err := getKuboClient()
+	client, err := kuboClientWithPanicHandling("KuboResolveIPNS", ctx)
 	if err != nil {
 		return "", err
 	}

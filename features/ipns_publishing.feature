@@ -18,7 +18,6 @@ Feature: IPNS Publishing
 
   @ipns-republish-all
   Scenario: User republishes all IPNS entries
-    Given an existing registered user
-    And the user is logged in
+    Given the user has an IPNS key named "test-key"
     When the user republishes all IPNS entries
     Then the republish operation succeeds

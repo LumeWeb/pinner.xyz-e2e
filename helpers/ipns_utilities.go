@@ -33,6 +33,7 @@ func CreateIPNSKey(ctx context.Context, name string) (context.Context, *ipfs_sdk
 	
 	// Store key details in context for verification steps
 	ctx = SetIPNSKeyID(ctx, key.Id)
+	ctx = SetIPNSKeyName(ctx, key.Name)
 	
 	if key.IpnsName != "" {
 		ctx = SetIPNSIPNSName(ctx, key.IpnsName)

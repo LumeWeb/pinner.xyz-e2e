@@ -68,14 +68,6 @@ func (s *IPNSKeyManagementSteps) anIPNSKeyWithNameIsCreated(ctx context.Context,
 	if key.Name != expectedName {
 		return ctx, fmt.Errorf("IPNS key has name %s, expected %s", key.Name, expectedName)
 	}
-	// Store key details in context for verification
-	ctx = helpers.SetIPNSKeyName(ctx, key.Name)
-	if key.PeerId != "" {
-		ctx = helpers.SetIPNSPeerID(ctx, key.PeerId)
-	}
-	if key.IpnsName != "" {
-		ctx = helpers.SetIPNSIPNSName(ctx, key.IpnsName)
-	}
 
 	return ctx, nil
 }
@@ -189,8 +181,8 @@ func (s *IPNSKeyManagementSteps) theIPNSKeyIsNoLongerInTheList(ctx context.Conte
 		return ctx, fmt.Errorf("no IPNS key ID found in context")
 	}
 
-	_, err := helpers.GetIPNSKey(ctx, strconv.Itoa(keyID))
-	if err == nil {
+	key, err := helpers.GetIPNSKey(ctx, strconv.Itoa(keyID))
+	if err == nil && key != nil {
 		return ctx, fmt.Errorf("IPNS key %d still exists, should have been deleted", keyID)
 	}
 
