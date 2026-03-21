@@ -85,6 +85,7 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 		ctx = context.WithValue(ctx, TestUsersCleanupKey, []string{})
 		ctx = context.WithValue(ctx, OperationsCleanupKey, []string{})
 		ctx = context.WithValue(ctx, PinRequestIDsCleanupKey, []string{})
+		ctx = context.WithValue(ctx, IPNSKeysCleanupKey, []string{})
 		return ctx, nil
 	}
 
@@ -98,6 +99,7 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	ctx = context.WithValue(ctx, TestUsersCleanupKey, []string{})
 	ctx = context.WithValue(ctx, OperationsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, PinRequestIDsCleanupKey, []string{})
+	ctx = context.WithValue(ctx, IPNSKeysCleanupKey, []string{})
 
 	token, ok := GetJWTToken(ctx)
 
@@ -193,7 +195,7 @@ type portalConfig struct {
 
 func getPortalConfig() portalConfig {
 	return portalConfig{
-		domain: GetEnv("PORTAL__CORE__DOMAIN", ""),
+		domain: GetEnv("PORTAL__CORE__DOMAIN", "localhost"),
 		port:   GetEnv("PORTAL__CORE__PORT", "8080"),
 		secure: GetEnv("PORTAL__CORE__SECURE", "false"),
 	}

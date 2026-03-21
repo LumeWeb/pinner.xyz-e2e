@@ -1,32 +1,27 @@
 package e2e_test
 
 import (
-	"fmt"
+	"flag"
 	"os"
 	"testing"
 
 	"github.com/cucumber/godog"
-	"github.com/spf13/pflag"
+	"github.com/cucumber/godog/colors"
 	"pinner.xyz-e2e/helpers"
 	"pinner.xyz-e2e/steps"
 )
 
 var opts = godog.Options{
-	Output: os.Stdout,
-	Format: "pretty",
+	Output:      colors.Colored(os.Stdout),
+	Format:      "pretty",
+	Concurrency: 4,
 }
 
 func init() {
-	godog.BindCommandLineFlags("godog.", &opts)
+	godog.BindFlags("godog.", flag.CommandLine, &opts)
 }
 
-func TestMain(m *testing.M) {
-	pflag.Parse()
-	opts.Paths = pflag.Args()
-	if len(opts.Paths) == 0 {
-		opts.Paths = []string{"features"}
-	}
-
+func TestFeatures(t *testing.T) {
 	status := godog.TestSuite{
 		Name:                "e2e",
 		ScenarioInitializer: InitializeScenario,
@@ -36,16 +31,13 @@ func TestMain(m *testing.M) {
 	// Print scenario timing summary after all tests complete
 	helpers.PrintScenarioTimings()
 
-	// Optional: Run `testing` package's logic besides godog.
-	if st := m.Run(); st > status {
-		status = st
+	if status == 2 {
+		t.SkipNow()
 	}
 
 	if status != 0 {
-		fmt.Fprintln(os.Stderr, "godog tests failed")
+		t.Fatalf("zero status code expected, %d received", status)
 	}
-
-	os.Exit(status)
 }
 
 // InitializeScenario initializes the scenario context with step definitions
@@ -86,4 +78,17 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	// Initialize IPFS content list steps
 	contentListSteps := steps.NewContentListSteps()
 	contentListSteps.InitializeScenario(ctx)
+
+	// Initialize IPNS common steps (shared wait/verification steps)
+	// Must be registered before service-specific IPNS steps
+	ipnsCommonSteps := steps.NewIPNSCommonSteps()
+	ipnsCommonSteps.InitializeScenario(ctx)
+
+	// Initialize IPNS key management steps
+	ipnsKeyManagementSteps := steps.NewIPNSKeyManagementSteps()
+	ipnsKeyManagementSteps.InitializeScenario(ctx)
+
+	// Initialize IPNS publishing and resolution steps
+	ipnsPublishingResolutionSteps := steps.NewIPNSPublishingResolutionSteps()
+	ipnsPublishingResolutionSteps.InitializeScenario(ctx)
 }

@@ -44,7 +44,7 @@ plugin.ipfs.protocol:
   listen_addresses:
     - "/ip4/0.0.0.0/tcp/4002"
     - "/ip4/0.0.0.0/udp/4002"
-
+  dht_mode: basic
 # WARNING: This is a TEST seed for CI/CD purposes only.
 # This seed is INTENTIONALLY COMPROMISED and MUST NOT be used in production.
 # DO NOT use this seed for any real deployments or secure operations.

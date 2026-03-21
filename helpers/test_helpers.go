@@ -73,6 +73,15 @@ const (
 	TestFilePathKey         contextKey = "test_file_path"
 	FileSizeKey             contextKey = "file_size"
 	DirectoryEntriesKey     contextKey = "directory_entries"
+
+	// IPNS context keys for IPNS state management
+	IPNSKeyIDKey            contextKey = "ipns_key_id"
+	IPNSKeyNameKey          contextKey = "ipns_key_name"
+	IPNSPeerIDKey           contextKey = "ipns_peer_id"
+	IPNSIPNSNameKey         contextKey = "ipns_ipns_name"
+	IPNSPublishCIDKey       contextKey = "ipns_publish_cid"
+	IPNSResolvedCIDKey      contextKey = "ipns_resolved_cid"
+	IPNSKeysCleanupKey      contextKey = "ipns_keys_cleanup"
 )
 
 // =============================================================================
@@ -850,4 +859,76 @@ func SetDirectoryEntries(ctx context.Context, entries []DirectoryEntry) context.
 // GetDirectoryEntries retrieves the expected directory structure from context
 func GetDirectoryEntries(ctx context.Context) ([]DirectoryEntry, bool) {
 	return GetContextValue[[]DirectoryEntry](ctx, DirectoryEntriesKey)
+}
+
+// IPNS context helpers
+
+// SetIPNSKeyID stores IPNS key ID in context
+func SetIPNSKeyID(ctx context.Context, keyID int) context.Context {
+	return SetContextValue(ctx, IPNSKeyIDKey, keyID)
+}
+
+// GetIPNSKeyID retrieves IPNS key ID from context
+func GetIPNSKeyID(ctx context.Context) (int, bool) {
+	return GetContextValue[int](ctx, IPNSKeyIDKey)
+}
+
+// SetIPNSKeyName stores IPNS key name in context
+func SetIPNSKeyName(ctx context.Context, name string) context.Context {
+	return SetContextValue(ctx, IPNSKeyNameKey, name)
+}
+
+// GetIPNSKeyName retrieves IPNS key name from context
+func GetIPNSKeyName(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, IPNSKeyNameKey)
+}
+
+// SetIPNSPeerID stores IPNS peer ID in context
+func SetIPNSPeerID(ctx context.Context, peerID string) context.Context {
+	return SetContextValue(ctx, IPNSPeerIDKey, peerID)
+}
+
+// GetIPNSPeerID retrieves IPNS peer ID from context
+func GetIPNSPeerID(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, IPNSPeerIDKey)
+}
+
+// SetIPNSIPNSName stores IPNS name in context
+func SetIPNSIPNSName(ctx context.Context, ipnsName string) context.Context {
+	return SetContextValue(ctx, IPNSIPNSNameKey, ipnsName)
+}
+
+// GetIPNSIPNSName retrieves IPNS name from context
+func GetIPNSIPNSName(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, IPNSIPNSNameKey)
+}
+
+// SetIPNSPublishCID stores publish CID in context
+func SetIPNSPublishCID(ctx context.Context, cid string) context.Context {
+	return SetContextValue(ctx, IPNSPublishCIDKey, cid)
+}
+
+// GetIPNSPublishCID retrieves publish CID from context
+func GetIPNSPublishCID(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, IPNSPublishCIDKey)
+}
+
+// SetIPNSResolvedCID stores resolved CID in context
+func SetIPNSResolvedCID(ctx context.Context, cid string) context.Context {
+	return SetContextValue(ctx, IPNSResolvedCIDKey, cid)
+}
+
+// GetIPNSResolvedCID retrieves resolved CID from context
+func GetIPNSResolvedCID(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, IPNSResolvedCIDKey)
+}
+
+// AddIPNSKeyCleanup adds IPNS key ID to cleanup list
+func AddIPNSKeyCleanup(ctx context.Context, keyID string) context.Context {
+	return AddToCleanupList(ctx, IPNSKeysCleanupKey, keyID)
+}
+
+// GetIPNSKeysCleanup retrieves IPNS keys cleanup list
+func GetIPNSKeysCleanup(ctx context.Context) []string {
+	return GetCleanupList[string](ctx, IPNSKeysCleanupKey)
 }

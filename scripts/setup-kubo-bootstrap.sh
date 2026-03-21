@@ -58,6 +58,15 @@ fi
 
 echo "Found IPFS container: $IPFS_CONTAINER"
 
+# Configure static swarm addresses to ensure consistent networking
+echo "Configuring static swarm addresses..."
+docker exec "$IPFS_CONTAINER" ipfs config --json Addresses.Swarm '["/ip4/0.0.0.0/tcp/4001","/ip4/0.0.0.0/udp/4001/quic-v1","/ip4/0.0.0.0/udp/4001/quic-v1/webtransport"]' > /dev/null 2>&1
+
+# Verify static addresses are configured
+echo "Verifying swarm addresses..."
+swarm_addrs=$(docker exec "$IPFS_CONTAINER" ipfs config Addresses.Swarm)
+echo "Current swarm addresses: $swarm_addrs"
+
 # Add portal peer to kubo bootstrap
 # Portal uses port 4002 to avoid conflict with Kubo's port 4001
 # Use deterministic portal peer ID from environment variable or shared config
