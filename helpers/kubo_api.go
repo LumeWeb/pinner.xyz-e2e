@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/boxo/path"
 	goCid "github.com/ipfs/go-cid"
 	"github.com/ipfs/kubo/client/rpc"
+	caopts "github.com/ipfs/kubo/core/coreiface/options"
 )
 
 // Global RPC client instance for local Kubo
@@ -21,6 +22,50 @@ var (
 	kuboOnce   sync.Once
 	kuboErr    error
 )
+
+// kuboClientWithPanicHandling wraps getKuboClient with panic handling
+// Returns the Kubo client or an error if initialization fails
+func kuboClientWithPanicHandling(funcName string, ctx context.Context) (*rpc.HttpApi, error) {
+	panicHandler := NewPanicHandler(funcName).WithName(funcName)
+	defer panicHandler.RecoverFromPanic(nil)
+	return getKuboClient()
+}
+
+// requireKuboNameAPI ensures the Name API client is available
+// Returns an error if the Name API is nil
+func requireKuboNameAPI(client *rpc.HttpApi) error {
+	if client.Name() == nil {
+		return fmt.Errorf("Kubo client Name API is nil")
+	}
+	return nil
+}
+
+// requireKuboKeyAPI ensures the Key API client is available
+// Returns an error if the Key API is nil
+func requireKuboKeyAPI(client *rpc.HttpApi) error {
+	if client.Key() == nil {
+		return fmt.Errorf("Kubo client Key API is nil")
+	}
+	return nil
+}
+
+// createIPFSPath creates an IPFS path from a CID string
+// Returns the path or an error if the CID is invalid
+func createIPFSPath(cid string) (path.Path, error) {
+	if cid == "" {
+		return nil, fmt.Errorf("CID cannot be empty")
+	}
+	return path.NewPath("/ipfs/" + cid)
+}
+
+// ExtractIPNSName removes the /ipns/ prefix from an IPNS path
+// Returns just the IPNS name (e.g., k51qz...)
+func ExtractIPNSName(ipnsPath string) string {
+	if strings.HasPrefix(ipnsPath, "/ipns/") {
+		return ipnsPath[6:]
+	}
+	return ipnsPath
+}
 
 // getKuboClient returns the Kubo RPC client instance
 func getKuboClient() (*rpc.HttpApi, error) {
@@ -115,3 +160,121 @@ func KuboCat(ctx context.Context, cidString string) (string, error) {
 
 	return string(content), nil
 }
+
+// KuboResolveIPNS resolves an IPNS name via Kubo's Name API
+// Returns the resolved CID or an error
+func KuboResolveIPNS(ctx context.Context, ipnsName string) (string, error) {
+	panicHandler := NewPanicHandler("").WithName("KuboResolveIPNS")
+	defer panicHandler.RecoverFromPanic(nil)
+
+	client, err := getKuboClient()
+	if err != nil {
+		return "", err
+	}
+
+	if client.Name() == nil {
+		return "", fmt.Errorf("Kubo client Name API is nil")
+	}
+
+	// Use Name API to resolve IPNS name
+	pathValue, err := client.Name().Resolve(ctx, ipnsName)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve IPNS name %s via Kubo Name API: %w", ipnsName, err)
+	}
+
+	if pathValue == nil {
+		return "", fmt.Errorf("Kubo Name API returned nil path for %s", ipnsName)
+	}
+
+	// Return the resolved CID (without /ipfs/ prefix)
+	pathStr := pathValue.String()
+	if strings.HasPrefix(pathStr, "/ipfs/") {
+		return pathStr[6:], nil
+	}
+	return pathStr, nil
+}
+
+// KuboIPNSPullFromPortal pulls an IPNS record from the Portal API and stores it in Kubo
+// This cross-node operation ensures Kubo can resolve IPNS names managed by the Portal
+
+// KuboIPNSPublishPath publishes a CID to an IPNS key in Kubo
+// Uses Kubo's Name.Publish API to create an IPNS record
+// Returns the IPNS name (e.g., k51qz...) or an error
+func KuboIPNSPublishPath(ctx context.Context, keyName string, cid string) (string, error) {
+	const funcName = "KuboIPNSPublishPath"
+	
+	client, err := kuboClientWithPanicHandling(funcName, ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if err := requireKuboNameAPI(client); err != nil {
+		return "", err
+	}
+
+	if keyName == "" {
+		return "", fmt.Errorf("Key name cannot be empty")
+	}
+
+	ipfsPath, err := createIPFSPath(cid)
+	if err != nil {
+		return "", err
+	}
+
+	ipnsName, err := client.Name().Publish(ctx, ipfsPath, caopts.Name.Key(keyName))
+	if err != nil {
+		return "", fmt.Errorf("failed to publish CID %s to IPNS key %s via Kubo: %w", cid, keyName, err)
+	}
+
+	return ipnsName.String(), nil
+}
+
+// KuboIPNSListKeys lists all IPNS keys in Kubo
+// Returns a list of key names or an error
+func KuboIPNSListKeys(ctx context.Context) ([]string, error) {
+	const funcName = "KuboIPNSListKeys"
+	
+	client, err := kuboClientWithPanicHandling(funcName, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := requireKuboKeyAPI(client); err != nil {
+		return nil, err
+	}
+
+	keyList, err := client.Key().List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list IPNS keys in Kubo: %w", err)
+	}
+
+	keys := make([]string, len(keyList))
+	for i, key := range keyList {
+		keys[i] = key.Name()
+	}
+
+	return keys, nil
+}
+
+// KuboIPNSCreateKey creates a new IPNS key in Kubo
+// Returns the key name or an error
+func KuboIPNSCreateKey(ctx context.Context, name string) (string, error) {
+	const funcName = "KuboIPNSCreateKey"
+	
+	client, err := kuboClientWithPanicHandling(funcName, ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if err := requireKuboKeyAPI(client); err != nil {
+		return "", err
+	}
+
+	key, err := client.Key().Generate(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("failed to create IPNS key %s in Kubo: %w", name, err)
+	}
+
+	return key.Name(), nil
+}
+
