@@ -94,6 +94,19 @@ jobs:
           IPFS_PROFILE: "test"
         options: >-
           --name portal-ipfs
+      
+      powerdns:
+        image: powerdns/pdns-auth-51:latest
+        ports:
+          - 8081:8081
+        env:
+          PDNS_AUTH_API_KEY: secret-api-key-for-testing
+          PDNS_AUTH_WEBSERVER_ADDRESS: "0.0.0.0"
+          PDNS_AUTH_WEBSERVER_PORT: "8081"
+          PDNS_AUTH_WEBSERVER_ALLOW_FROM: "0.0.0.0/0"
+          PDNS_AUTH_LOGLEVEL: "notice"
+        options: >-
+          --name portal-powerdns
     
     steps:
     - name: Checkout Repo
@@ -121,6 +134,9 @@ jobs:
         
         chmod +x ./scripts/wait-ipfs.sh
         ./scripts/wait-ipfs.sh
+        
+        chmod +x ./scripts/wait-powerdns.sh
+        ./scripts/wait-powerdns.sh
     
     - name: Setup Environment
       uses: ./.github/actions/setup-env

@@ -65,6 +65,22 @@ services:
     networks:
       - e2e-network
 
+  powerdns:
+    image: powerdns/pdns-auth-51:latest
+    container_name: portal-powerdns
+    ports:
+      - "8081:8081"
+    environment:
+      PDNS_AUTH_API_KEY: "secret-api-key-for-testing"
+      PDNS_AUTH_WEBSERVER_ADDRESS: "0.0.0.0"
+      PDNS_AUTH_WEBSERVER_PORT: "8081"
+      PDNS_AUTH_WEBSERVER_ALLOW_FROM: "0.0.0.0/0"
+      PDNS_AUTH_LOGLEVEL: "notice"
+    volumes:
+      - powerdns-data:/var/lib/powerdns
+    networks:
+      - e2e-network
+
   # This container waits for all services to be healthy
   services-ready:
     image: alpine:latest
@@ -78,12 +94,15 @@ services:
         condition: service_started
       ipfs:
         condition: service_healthy
+      powerdns:
+        condition: service_started
     command: ["sh", "-c", "exit 0"]
     networks:
       - e2e-network
 
 volumes:
   gofakes3-data:
+  powerdns-data:
 
 networks:
   e2e-network:

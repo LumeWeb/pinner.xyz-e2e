@@ -13,7 +13,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/pflag v1.0.7
 	go.lumeweb.com/ipfs-content v0.1.8
-	go.lumeweb.com/ipfs-sdk v0.1.18
+	go.lumeweb.com/ipfs-sdk v0.1.21-0.20260322033507-ea1785ab68c5
 	go.lumeweb.com/portal-sdk v0.1.11
 )
 

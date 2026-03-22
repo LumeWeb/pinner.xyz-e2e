@@ -82,8 +82,17 @@ const (
 	IPNSPublishCIDKey       contextKey = "ipns_publish_cid"
 	IPNSResolvedCIDKey      contextKey = "ipns_resolved_cid"
 	IPNSKeysCleanupKey      contextKey = "ipns_keys_cleanup"
-)
 
+	// DNS context keys for DNS state management
+	DNSZoneIDKey            contextKey = "dns_zone_id"
+	DNSZoneDomainKey        contextKey = "dns_zone_domain"
+	DNSZoneCleanupKey       contextKey = "dns_zones_cleanup"
+	DNSRecordNameKey        contextKey = "dns_record_name"
+	DNSRecordFQDNKey        contextKey = "dns_record_fqdn"
+	DNSRecordTypeKey        contextKey = "dns_record_type"
+	DNSRecordValueKey       contextKey = "dns_record_value"
+	DNSRecordListCountKey   contextKey = "dns_record_list_count"
+)
 // =============================================================================
 // Generic Context Helpers
 // =============================================================================
@@ -931,4 +940,58 @@ func AddIPNSKeyCleanup(ctx context.Context, keyID string) context.Context {
 // GetIPNSKeysCleanup retrieves IPNS keys cleanup list
 func GetIPNSKeysCleanup(ctx context.Context) []string {
 	return GetCleanupList[string](ctx, IPNSKeysCleanupKey)
+}
+
+// =============================================================================
+// DNS context helpers
+// =============================================================================
+
+// SetDNSZoneID stores DNS zone ID in context
+func SetDNSZoneID(ctx context.Context, zoneID string) context.Context {
+	return SetContextValue(ctx, DNSZoneIDKey, zoneID)
+}
+
+// GetDNSZoneID retrieves DNS zone ID from context
+func GetDNSZoneID(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, DNSZoneIDKey)
+}
+
+// SetDNSZoneDomain stores DNS zone domain in context
+func SetDNSZoneDomain(ctx context.Context, domain string) context.Context {
+	return SetContextValue(ctx, DNSZoneDomainKey, domain)
+}
+
+// GetDNSZoneDomain retrieves DNS zone domain from context
+func GetDNSZoneDomain(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, DNSZoneDomainKey)
+}
+
+// SetDNSRecordName stores DNS record name in context
+func SetDNSRecordName(ctx context.Context, name string) context.Context {
+	return SetContextValue(ctx, DNSRecordNameKey, name)
+}
+
+// GetDNSRecordName retrieves DNS record name from context
+func GetDNSRecordName(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, DNSRecordNameKey)
+}
+
+// SetDNSRecordType stores DNS record type in context
+func SetDNSRecordType(ctx context.Context, recordType string) context.Context {
+	return SetContextValue(ctx, DNSRecordTypeKey, recordType)
+}
+
+// GetDNSRecordType retrieves DNS record type from context
+func GetDNSRecordType(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, DNSRecordTypeKey)
+}
+
+// AddDNSZoneCleanup adds DNS zone ID to cleanup list
+func AddDNSZoneCleanup(ctx context.Context, zoneID string) context.Context {
+	return AddToCleanupList(ctx, DNSZoneCleanupKey, zoneID)
+}
+
+// GetDNSZonesCleanup retrieves DNS zones cleanup list
+func GetDNSZonesCleanup(ctx context.Context) []string {
+	return GetCleanupList[string](ctx, DNSZoneCleanupKey)
 }

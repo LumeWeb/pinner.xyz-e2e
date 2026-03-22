@@ -91,4 +91,22 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	// Initialize IPNS publishing and resolution steps
 	ipnsPublishingResolutionSteps := steps.NewIPNSPublishingResolutionSteps()
 	ipnsPublishingResolutionSteps.InitializeScenario(ctx)
+
+	// Initialize DNS background steps (shared authentication/IPFS steps)
+	// Must be registered before any other DNS steps
+	dnsBackgroundSteps := steps.NewDNSBackgroundSteps()
+	dnsBackgroundSteps.InitializeScenario(ctx)
+
+	// Initialize DNS common steps (shared verification steps)
+	// Must be registered before service-specific DNS steps
+	dnsCommonSteps := steps.NewDNSCommonSteps()
+	dnsCommonSteps.InitializeScenario(ctx)
+
+	// Initialize DNS zone management steps
+	dnsZoneSteps := steps.NewDNSZoneSteps()
+	dnsZoneSteps.InitializeScenario(ctx)
+
+	// Initialize DNS record management steps
+	dnsRecordSteps := steps.NewDNSRecordSteps()
+	dnsRecordSteps.InitializeScenario(ctx)
 }
