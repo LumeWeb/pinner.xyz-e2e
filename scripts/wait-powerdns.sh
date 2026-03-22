@@ -22,6 +22,9 @@ IN_GHA="${GITHUB_ACTIONS:-false}"
 DNS_API_URL="${POWERDNS_API_URL:-http://localhost:8081}"
 DNS_API_KEY="${POWERDNS_API_KEY:-secret-api-key-for-testing}"
 
+# Normalize API URL - remove trailing /api/v1 if present to avoid duplication
+DNS_API_BASE="${DNS_API_URL%/api/v1}"
+
 # Helper function to check PowerDNS API
 check_powerdns() {
     local api_url="$1"
@@ -32,9 +35,9 @@ check_powerdns() {
     curl -f -s -H "X-API-Key: ${api_key}" "${api_url}/api/v1/servers/localhost" > /dev/null 2>&1
 }
 
-log_info "Waiting for PowerDNS API at ${DNS_API_URL}..."
+log_info "Waiting for PowerDNS API at ${DNS_API_BASE}..."
 
-if wait_with_timeout "$(get_timeout 30 DNS_WAIT_TIMEOUT)" "check_powerdns '${DNS_API_URL}' '${DNS_API_KEY}'"; then
+if wait_with_timeout "$(get_timeout 30 DNS_WAIT_TIMEOUT)" "check_powerdns '${DNS_API_BASE}' '${DNS_API_KEY}'"; then
     log_ok "PowerDNS is ready"
     exit 0
 else
