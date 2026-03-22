@@ -6,9 +6,9 @@
 PORTAL_PORT ?= 8080
 
 # Phony targets (targets that don't represent files)
-.PHONY: help up down setup-env start-portal restart-portal stop-portal test clean recreate-mysql
+.PHONY: help up down setup-env start-portal restart-portal stop-portal test clean recreate-mysql recreate-powerdns
 .PHONY: verify-services logs ps e2e setup teardown _test build-portal rebuild-portal
-.PHONY: start-dns stop-dns dns-logs ensure-venv setup-compliance
+.PHONY: start-dns stop-dns dns-logs ensure-venv setup-compliance wait-ipfs wait-powerdns
 .PHONY: test-tag debug-tag test-compliance
 .PHONY: _test-compliance
 
@@ -22,8 +22,10 @@ help:
 	@echo "  make logs            - View service logs"
 	@echo "  make ps              - Show running containers"
 	@echo "  make wait-ipfs       - Wait for IPFS service to be ready"
+	@echo "  make wait-powerdns   - Wait for PowerDNS service to be ready"
 	@echo "  make verify-services - Wait for all services to be ready"
 	@echo "  make recreate-mysql  - Recreate MySQL container to wipe data"
+	@echo "  make recreate-powerdns - Recreate PowerDNS container to wipe data"
 	@echo ""
 	@echo "DNS Server:"
 	@echo "  make start-dns       - Start dynamic DNS server (routes to localhost)"
@@ -64,10 +66,14 @@ up:
 wait-ipfs:
 	@./scripts/wait-ipfs.sh
 
+wait-powerdns:
+	@./scripts/wait-powerdns.sh
+
 verify-services:
 	@./scripts/wait-mysql.sh
 	@./scripts/wait-gofakes3.sh
 	@./scripts/wait-ipfs.sh
+	@./scripts/wait-powerdns.sh
 
 recreate-mysql:
 	@echo "Recreating MySQL container to wipe data..."
@@ -77,6 +83,15 @@ recreate-mysql:
 	@echo "Waiting for MySQL to be ready..."
 	@docker compose ps
 	@echo "[OK] MySQL recreated with clean state"
+
+recreate-powerdns:
+	@echo "Recreating PowerDNS container to wipe data..."
+	@-docker compose stop powerdns
+	@-docker compose rm -f powerdns
+	@docker compose up -d powerdns
+	@echo "Waiting for PowerDNS to be ready..."
+	@docker compose ps
+	@echo "[OK] PowerDNS recreated with clean state"
 
 down:
 	@echo "Stopping services..."

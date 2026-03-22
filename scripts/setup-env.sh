@@ -114,6 +114,7 @@ for env_var in "${!RENTERD_VARS[@]}"; do
   fi
 done
 
+
 # Get Kubo peer ID and generate IPFS bootstrap addresses
 # This requires the kubo container to be running (started via 'make up')
 echo "Retrieving Kubo peer ID for IPFS bootstrap..."

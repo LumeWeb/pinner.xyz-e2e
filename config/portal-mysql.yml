@@ -45,6 +45,15 @@ plugin.ipfs.protocol:
     - "/ip4/0.0.0.0/tcp/4002"
     - "/ip4/0.0.0.0/udp/4002"
   dht_mode: basic
+
+# PowerDNS configuration for DNS service
+plugin.ipfs.service.dns:
+  enabled: true
+  nameservers:
+      - ns1.portal.com.
+      - ns2.portal.com.
+  powerdns_api_url: "http://localhost:8081/api/v1"
+  powerdns_api_key: "secret-api-key-for-testing"
 # WARNING: This is a TEST seed for CI/CD purposes only.
 # This seed is INTENTIONALLY COMPROMISED and MUST NOT be used in production.
 # DO NOT use this seed for any real deployments or secure operations.

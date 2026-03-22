@@ -21,6 +21,9 @@ func NewAuthSteps() *AuthSteps {
 
 // InitializeScenario registers all step definitions with godog
 func (s *AuthSteps) InitializeScenario(ctx *godog.ScenarioContext) {
+	// General authentication
+	ctx.Step(`^the user has an authenticated API key$`, s.theUserHasAnAuthenticatedAPIKey)
+
 	// Registration steps
 	ctx.Step(`^a new user registration request$`, s.aNewUserRegistrationRequest)
 	ctx.Step(`^the user submits valid registration data$`, s.theUserSubmitsValidRegistrationData)
@@ -57,6 +60,48 @@ func (s *AuthSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 
 	// Setup account API client
 	s.accountAPI = helpers.GetUnauthenticatedClient()
+}
+
+// General authentication step implementations
+
+func (s *AuthSteps) theUserHasAnAuthenticatedAPIKey(ctx context.Context) (context.Context, error) {
+	testUser := helpers.CreateTestUser()
+
+	// Register the user
+	err := s.accountAPI.Register(ctx, testUser.Email, testUser.FirstName, testUser.LastName, testUser.Password)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to register user: %w", err)
+	}
+
+	ctx = helpers.AddTestUserCleanup(ctx, testUser.Email)
+
+	// Login to get JWT
+	loginAPI := helpers.GetUnauthenticatedClient()
+	loginResult, err := loginAPI.Login(ctx, testUser.Email, testUser.Password)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to login: %w", err)
+	}
+
+	// Create API key with JWT
+	authClient := helpers.CreateAuthenticatedClient(loginResult.Token)
+	apiKey, err := authClient.CreateAPIKey(ctx, "test-api-key")
+	if err != nil {
+		return ctx, fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	// Store API key in context (this stores apiKey.Token as the API key string)
+	ctx = helpers.StoreAPIKeyWithUUID(ctx, apiKey)
+
+	// Authenticate using API key to get new JWT token
+	token, err := loginAPI.LoginWithAPIKey(ctx, apiKey.Token)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to authenticate with API key: %w", err)
+	}
+
+	// Store the JWT token from API key authentication
+	ctx = helpers.SetJWTToken(ctx, token)
+
+	return ctx, nil
 }
 
 // Registration step implementations

@@ -100,6 +100,14 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	ctx = context.WithValue(ctx, OperationsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, PinRequestIDsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, IPNSKeysCleanupKey, []string{})
+	
+	// Initialize DNS context keys to prevent cross-scenario contamination when running concurrently
+	// Each scenario must have its own isolated DNS context
+	ctx = context.WithValue(ctx, DNSZoneCleanupKey, []string{})
+	ctx = context.WithValue(ctx, DNSZoneIDKey, "")
+	ctx = context.WithValue(ctx, DNSZoneDomainKey, "")
+	ctx = context.WithValue(ctx, DNSRecordNameKey, "")
+	ctx = context.WithValue(ctx, DNSRecordTypeKey, "")
 
 	token, ok := GetJWTToken(ctx)
 
@@ -133,7 +141,7 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 }
 
 // afterScenarioCleanup performs cleanup after each scenario
-// Ensures all test resources (API keys, users, operations, IPFS pins) are cleaned up
+// Ensures all test resources (API keys, users, operations, IPFS pins, DNS zones, IPNS keys) are cleaned up
 func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 	panicHandler := NewPanicHandler("").WithName("afterScenarioCleanup")
 	if sc != nil {
@@ -176,6 +184,16 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 
 	// Clean up IPFS assets created during the scenario
 	cleanupIPFSAssets(ctx)
+
+	// Clean up DNS zones created during the scenario
+	if err := CleanupDNSZones(ctx); err != nil {
+		fmt.Printf("Warning: failed to cleanup DNS zones: %v\n", err)
+	}
+
+	// Clean up IPNS keys created during the scenario
+	if err := CleanupIPNSKeys(ctx); err != nil {
+		fmt.Printf("Warning: failed to cleanup IPNS keys: %v\n", err)
+	}
 
 	// Record scenario timing after all cleanup to avoid output interleaving
 	if startTime, ok := GetContextValue[time.Time](ctx, ScenarioStartTimeKey); ok {
