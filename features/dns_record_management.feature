@@ -39,4 +39,4 @@ Feature: DNS Record Management
   Scenario: User deletes a DNS record
     Given the user has a DNS record "www" of type "A"
     When the user deletes the DNS record
-    And the record cannot be retrieved
+    Then the record cannot be retrieved

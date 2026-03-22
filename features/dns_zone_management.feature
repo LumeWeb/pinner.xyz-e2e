@@ -30,4 +30,4 @@ Feature: DNS Zone Management
   Scenario: User deletes a DNS zone
     Given the user has a DNS zone
     When the user deletes the DNS zone
-    And the zone cannot be retrieved
+    Then the zone cannot be retrieved
