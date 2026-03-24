@@ -175,55 +175,58 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 		return fmt.Errorf("failed to get authenticated client: %w", err)
 	}
 
-	deadline := time.Now().Add(timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	pollInterval := 500 * time.Millisecond
-	pollCount := 0
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
 
-	for time.Now().Before(deadline) {
-		pollCount++
-		
-		// List operations filtered by CID
-		operations, err := api.ListOperations(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to list operations: %w", err)
-		}
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			return fmt.Errorf("timeout waiting for operation")
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			// List operations filtered by CID
+			operations, err := api.ListOperations(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to list operations: %w", err)
+			}
 
-		// Find the operation for this CID
-		var targetOp *account.Operation
-		for _, op := range operations {
-			if op.Cid != nil {
-				equal, err := CIDsEqual(*op.Cid, cid)
-				if err != nil {
-					continue
-				}
-				if equal {
-					targetOp = op
-					break
+			// Find the operation for this CID
+			var targetOp *account.Operation
+			for _, op := range operations {
+				if op.Cid != nil {
+					equal, err := CIDsEqual(*op.Cid, cid)
+					if err != nil {
+						continue
+					}
+					if equal {
+						targetOp = op
+						break
+					}
 				}
 			}
-		}
 
 			if targetOp == nil {
-			// No operation found yet - wait and retry
-			time.Sleep(pollInterval)
-			continue
-		}
+				// No operation found yet - continue polling
+				continue
+			}
 
-		// Use the SDK's built-in WaitForOperation with the operation ID
-		remainingTime := time.Until(deadline)
-		_, err = api.WaitForOperation(ctx, int64(targetOp.Id),
-			account.WithPollTimeout(remainingTime),
-			account.WithPollInterval(pollInterval),
-			account.WithPollSettledStates(account.OperationStatusCompleted),
-		)
-		if err != nil {
-			return fmt.Errorf("operation for CID %s failed: %w", cid, err)
-		}
+			// Use the SDK's built-in WaitForOperation with the operation ID
+			_, err = api.WaitForOperation(ctx, int64(targetOp.Id),
+				account.WithPollInterval(pollInterval),
+				account.WithPollSettledStates(account.OperationStatusCompleted),
+			)
+			if err != nil {
+				return fmt.Errorf("operation for CID %s failed: %w", cid, err)
+			}
 
-		return nil
+			return nil
+		}
 	}
-
-	return fmt.Errorf("timeout waiting for operation for CID %s (timeout: %s)", cid, timeout)
 }
 
 // IPFSPinAdd pins the given CID using Portal SDK

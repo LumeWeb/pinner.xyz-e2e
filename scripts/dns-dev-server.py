@@ -181,14 +181,16 @@ class DynamicDNSServer:
                 raise HTTPException(status_code=404, detail=f"Zone {domain} not found")
             
             records = []
-            for record_type, record_list in self.zones[domain].items():
-                for rec in record_list:
-                    records.append({
-                        "type": record_type,
-                        "value": rec['value'],
-                        "ttl": rec.get('ttl', 300),
-                        "priority": rec.get('priority')
-                    })
+            for record_name, type_dict in self.zones[domain].items():
+                for record_type, record_list in type_dict.items():
+                    for rec in record_list:
+                        records.append({
+                            "name": record_name if record_name else "@",
+                            "type": record_type,
+                            "value": rec['value'],
+                            "ttl": rec.get('ttl', 300),
+                            "priority": rec.get('priority')
+                        })
             
             return {"domain": domain, "records": records, "count": len(records)}
     

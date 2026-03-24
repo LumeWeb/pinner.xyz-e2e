@@ -76,36 +76,36 @@ func (s *WebsiteDNSSteps) theUserValidatesTheDNSRecords(ctx context.Context) (co
 }
 
 // theWebsiteBecomesActive verifies that website status is active
-func (s *WebsiteDNSSteps) theWebsiteBecomesActive(ctx context.Context) error {
+func (s *WebsiteDNSSteps) theWebsiteBecomesActive(ctx context.Context) (context.Context, error) {
 	websiteService, err := helpers.RequireWebsiteService(ctx)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
 	id, err := helpers.RequireWebsiteID(ctx)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
 	// Get the updated website status
 	idStr := fmt.Sprintf("%d", id)
 	website, err := websiteService.Get(ctx, idStr)
 	if err != nil {
-		return fmt.Errorf("failed to get website status: %w", err)
+		return ctx, fmt.Errorf("failed to get website status: %w", err)
 	}
 
 	if website == nil {
-		return fmt.Errorf("website is nil")
+		return ctx, fmt.Errorf("website is nil")
 	}
 
 	// Verify status is active
 	if website.Status != "active" {
-		return fmt.Errorf("expected website status 'active', got '%s'", website.Status)
+		return ctx, fmt.Errorf("expected website status 'active', got '%s'", website.Status)
 	}
 
 	ctx = helpers.SetWebsiteStatus(ctx, website.Status)
 
-	return nil
+	return ctx, nil
 }
 
 // theUserCreatesAWebsiteWithDNSZoneLinking creates a website linked to an existing DNS zone

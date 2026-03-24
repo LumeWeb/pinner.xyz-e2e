@@ -19,6 +19,7 @@ func CleanupWebsites(ctx context.Context) error {
 		return err
 	}
 
+	var cleanupErrors []error
 	for _, id := range websiteIDs {
 		idStr := fmt.Sprintf("%d", id)
 		err := websiteService.Delete(ctx, idStr)
@@ -31,9 +32,12 @@ func CleanupWebsites(ctx context.Context) error {
 				// Website was already deleted - this is successful cleanup, continue to next
 				continue
 			}
-			// Other errors are actual failures
-			return fmt.Errorf("failed to delete website %d: %w", id, err)
+			// Other errors are actual failures - collect and continue
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("failed to delete website %d: %w", id, err))
 		}
+	}
+	if len(cleanupErrors) > 0 {
+		return fmt.Errorf("website cleanup completed with %d errors: %v", len(cleanupErrors), cleanupErrors)
 	}
 
 	return nil

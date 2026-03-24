@@ -24,7 +24,7 @@ header h1 {
     margin-bottom: 0.5rem;
 }
 
-hero {
+.hero {
     padding: 4rem 2rem;
     text-align: center;
     background: white;

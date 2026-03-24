@@ -30,8 +30,6 @@ func (s *WebsiteSSLSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	// SSL status verification
 	ctx.Step(`^the SSL status is stored in context$`, s.theSSLStatusIsStoredInContext)
 	ctx.Step(`^the SSL certificate is issued$`, s.theSSLCertificateIsIssued)
-	ctx.Step(`^the website has valid SSL certificate$`, s.theWebsiteHasValidSSLCertificate)
-	ctx.Step(`^the website SSL status is "([^"]*)"$`, s.theWebsiteSSLStatusIs)
 	ctx.Step(`^the SSL status contains error details$`, s.theSSLStatusContainsErrorDetails)
 }
 

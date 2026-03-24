@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -131,7 +132,7 @@ func (c *DNSDevClient) ListZones(ctx context.Context) ([]DNSDevZone, error) {
 
 // GetZone gets a specific DNS zone by domain
 func (c *DNSDevClient) GetZone(ctx context.Context, domain string) (*DNSDevZoneDetail, error) {
-	url := fmt.Sprintf("%s/api/zones/%s", c.baseURL, domain)
+	url := fmt.Sprintf("%s/api/zones/%s", c.baseURL, url.PathEscape(domain))
 	
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -197,7 +198,7 @@ func (c *DNSDevClient) AddZone(ctx context.Context, zone DNSDevZone) (*DNSDevZon
 
 // DeleteZone deletes a DNS zone from the dev server
 func (c *DNSDevClient) DeleteZone(ctx context.Context, domain string) error {
-	url := fmt.Sprintf("%s/api/zones/%s", c.baseURL, domain)
+	url := fmt.Sprintf("%s/api/zones/%s", c.baseURL, url.PathEscape(domain))
 	
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {

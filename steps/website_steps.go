@@ -108,6 +108,7 @@ func (s *WebsiteSteps) theUserCreatesAnIPNSKey(ctx context.Context) (context.Con
 	// Store IPNS key details for cleanup and verification
 	ctx = helpers.SetIPNSKeyID(ctx, ipnsKey.Id)
 	ctx = helpers.SetIPNSKeyName(ctx, keyName)
+	ctx = helpers.SetIPNSIPNSName(ctx, ipnsKey.Name)
 	
 	return ctx, nil
 }
@@ -147,6 +148,11 @@ func (s *WebsiteSteps) theUserPublishesNewContentToIPNSKey(ctx context.Context) 
 	
 	// Store the new IPNS name for verification
 	ctx = helpers.SetIPNSIPNSName(ctx, ipnsResponse.Name)
+	
+	// Wait for IPNS record to be available before continuing
+	if err := helpers.WaitForIPNSPublish(ctx, keyID, newCID); err != nil {
+		return ctx, fmt.Errorf("failed to wait for IPNS record: %w", err)
+	}
 	
 	return ctx, nil
 }
