@@ -14,9 +14,9 @@ setup_project_path
 if [ ! -d .venv ]; then
   log_info "Creating Python virtual environment..."
   python3 -m venv .venv
-  log_info "Installing dnserver..."
-  .venv/bin/pip install dnserver >/dev/null 2>&1
-  log_ok "Virtual environment created with dnserver"
+  log_info "Installing dnserver, fastapi, and uvicorn..."
+  .venv/bin/pip install dnserver fastapi uvicorn >/dev/null 2>&1
+  log_ok "Virtual environment created with dnserver, fastapi, and uvicorn"
 else
   log_ok "Virtual environment already exists"
 fi

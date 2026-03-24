@@ -163,10 +163,29 @@ func ResolveIPNSName(ctx context.Context, name string) (*ipfs_sdk.IPNSResolveRes
 }
 
 // WaitForIPNSPublish waits for an IPNS publish operation to complete
-// This is a placeholder for future implementation of publish status tracking
+// WaitForIPNSPublish waits for an IPNS publish operation to complete
+// Uses the SDK's WaitForIPNSResolution to poll until the record resolves to expected CID
 func WaitForIPNSPublish(ctx context.Context, keyID int, expectedCID string) error {
-	// Most IPNS publish operations complete immediately
-	// Future implementation may add retry logic for distributed propagation
+	
+	ipnsService, err := RequireIPNSService(ctx)
+	if err != nil {
+		return err
+	}
+	
+	// Get the IPNS key to retrieve the peer ID/name
+	keyIDStr := fmt.Sprintf("%d", keyID)
+	key, err := ipnsService.GetKey(ctx, keyIDStr)
+	if err != nil {
+		return fmt.Errorf("failed to get IPNS key %d: %w", keyID, err)
+	}
+
+	// Wait for the IPNS record to resolve to the expected CID
+	_, err = ipnsService.WaitForIPNSResolution(ctx, key.PeerId, expectedCID)
+
+	if err != nil {
+		return fmt.Errorf("failed waiting for IPNS resolution (key ID: %d, expected CID: %s): %w", keyID, expectedCID, err)
+	}
+
 	return nil
 }
 

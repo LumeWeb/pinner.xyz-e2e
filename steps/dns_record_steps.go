@@ -141,9 +141,10 @@ func (s *DNSRecordSteps) theUserListsDNSRecords(ctx context.Context) (context.Co
 
 	// Store record count in context for verification
 	recordCount := len(records)
-	ctx = helpers.SetContextValue(ctx, helpers.DNSRecordListCountKey, recordCount)
+	ctx = helpers.SetListCount(ctx, helpers.DNSRecordListKey, recordCount)
 
 	return ctx, nil
+
 }
 
 // theUserUpdatesTheDNSRecordValueTo updates a DNS record with a new value
@@ -208,7 +209,19 @@ func (s *DNSRecordSteps) theUserDeletesDNSRecordsFor(ctx context.Context, name1,
 		return ctx, fmt.Errorf("failed to bulk delete DNS records: %w", err)
 	}
 
+
+	// Update count in context by decrementing from previous count
+	// Consistent with other resource types (websites, zones) which don't re-list after deletion
+	if prevCount, ok := helpers.GetListCount(ctx, helpers.DNSRecordListKey); ok {
+		updatedCount := prevCount - len(identifiers)
+		if updatedCount < 0 {
+			updatedCount = 0
+		}
+		ctx = helpers.SetListCount(ctx, helpers.DNSRecordListKey, updatedCount)
+	}
+
 	return ctx, nil
+
 }
 
 // theUserCreatesRecordsFor creates multiple DNS records in bulk
@@ -235,10 +248,14 @@ func (s *DNSRecordSteps) buildNameRecords(ctx context.Context, recordType string
 		records = append(records, helpers.BuildRecordRequest(recordType, name, value))
 	}
 
-	_, err = helpers.BulkCreateDNSRecords(ctx, zoneID, records)
+	createdRecords, err := helpers.BulkCreateDNSRecords(ctx, zoneID, records)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to bulk create DNS records: %w", err)
 	}
+
+	// Store record count in context for verification
+	createdCount := len(createdRecords)
+	ctx = helpers.SetListCount(ctx, helpers.DNSRecordListKey, createdCount)
 
 	// Store record type in context so bulk delete can use it
 	ctx = helpers.SetDNSRecordType(ctx, recordType)

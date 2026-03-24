@@ -246,14 +246,15 @@ func (s *DNSCommonSteps) theUserReceivesAZoneList(ctx context.Context) (context.
 }
 
 // theZoneListContainsTheZoneCount verifies that the zone list has an expected count
+// This expects the count to have been stored in context by the list operation
 func (s *DNSCommonSteps) theZoneListContainsTheZoneCount(ctx context.Context) (context.Context, error) {
-	zones, err := helpers.ListDNSZones(ctx)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to list DNS zones: %w", err)
+	count, ok := helpers.GetListCount(ctx, helpers.DNSZoneListKey)
+	if !ok {
+		return ctx, fmt.Errorf("zone count not found in context (key: %s", helpers.DNSZoneListKey)
 	}
-
-	// The actual count validation would be stored in context during list operation
-	_ = zones
+	if count < 0 {
+		return ctx, fmt.Errorf("zone count is negative: %d", count)
+	}
 	return ctx, nil
 }
 
@@ -277,36 +278,28 @@ func (s *DNSCommonSteps) theUserReceivesARecordList(ctx context.Context) (contex
 }
 
 // theRecordListContainsTheRecordCount verifies that the record list has an expected count
+// This expects the count to have been stored in context by the list operation
 func (s *DNSCommonSteps) theRecordListContainsTheRecordCount(ctx context.Context) (context.Context, error) {
-	zoneID, ok := helpers.GetDNSZoneID(ctx)
+	count, ok := helpers.GetListCount(ctx, helpers.DNSRecordListKey)
 	if !ok {
-		return ctx, fmt.Errorf("no DNS zone ID found in context")
+		return ctx, fmt.Errorf("record count not found in context (key: %s)", helpers.DNSRecordListKey)
 	}
-
-	records, err := helpers.ListDNSRecords(ctx, zoneID)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to list DNS records: %w", err)
+	if count < 0 {
+		return ctx, fmt.Errorf("record count is negative: %d", count)
 	}
-
-	// The actual count validation would be stored in context during list operation
-	_ = records
 	return ctx, nil
 }
 
 // theDNSRecordCountIs verifies the DNS record count matches expected
+// Uses the count stored in context from list operation instead of making another API call
 func (s *DNSCommonSteps) theDNSRecordCountIs(ctx context.Context, expectedCount int) (context.Context, error) {
-	zoneID, ok := helpers.GetDNSZoneID(ctx)
+	count, ok := helpers.GetListCount(ctx, helpers.DNSRecordListKey)
 	if !ok {
-		return ctx, fmt.Errorf("no DNS zone ID found in context")
+		return ctx, fmt.Errorf("record count not found in context (key: %s)", helpers.DNSRecordListKey)
 	}
 
-	records, err := helpers.ListDNSRecords(ctx, zoneID)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to list DNS records: %w", err)
-	}
-
-	if len(records) != expectedCount {
-		return ctx, fmt.Errorf("DNS record count is %d, expected %d", len(records), expectedCount)
+	if count != expectedCount {
+		return ctx, fmt.Errorf("DNS record count is %d, expected %d", count, expectedCount)
 	}
 
 	return ctx, nil

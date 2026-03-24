@@ -21,6 +21,9 @@ func NewDNSBackgroundSteps() *DNSBackgroundSteps {
 func (s *DNSBackgroundSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	// Common IPFS connection steps used across all DNS features
 	ctx.Step(`^the user has an IPFS client connection$`, s.theUserHasIPFSClientConnection)
+	
+	// DNS dev server client initialization
+	ctx.Step(`^the DNS dev server is available$`, s.theDNSDevServerIsAvailable)
 }
 
 // theUserHasIPFSClientConnection verifies the user has an IPFS client connection
@@ -30,5 +33,19 @@ func (s *DNSBackgroundSteps) theUserHasIPFSClientConnection(ctx context.Context)
 		return ctx, err
 	}
 
+	return ctx, nil
+}
+
+// theDNSDevServerIsAvailable ensures the DNS dev server client is initialized
+// and the DNS dev server API is responsive
+func (s *DNSBackgroundSteps) theDNSDevServerIsAvailable(ctx context.Context) (context.Context, error) {
+	// Ensure DNS dev client exists in context
+	ctx = helpers.EnsureDNSDevClient(ctx)
+	
+	// Check server health
+	if err := helpers.CheckDNSDevServerHealth(ctx); err != nil {
+		return ctx, err
+	}
+	
 	return ctx, nil
 }

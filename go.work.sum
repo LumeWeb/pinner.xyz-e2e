@@ -1,2 +1,4 @@
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=
 github.com/go-openapi/swag v0.23.1 h1:lpsStH0n2ittzTnbaSloVZLuB5+fvSY/+hnagBjSNZU=
+go.lumeweb.com/ipfs-sdk v0.1.21-0.20260322033507-ea1785ab68c5 h1:P+i7LTuIp6gFLvjsUSd2sa1yv+rvGwbNZItbX3K7Azc=
+go.lumeweb.com/ipfs-sdk v0.1.21-0.20260322033507-ea1785ab68c5/go.mod h1:gcewG2IFdQclt4DDY2LTZFtoPEFqeHaW8x8DeHLi/II=
