@@ -209,15 +209,16 @@ func (s *DNSRecordSteps) theUserDeletesDNSRecordsFor(ctx context.Context, name1,
 		return ctx, fmt.Errorf("failed to bulk delete DNS records: %w", err)
 	}
 
-	// List records to update count in context after deletion
-	allRecords, err := helpers.ListDNSRecords(ctx, zoneID)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to list DNS records after deletion: %w", err)
-	}
 
-	// Store updated record count in context
-	updatedCount := len(allRecords)
-	ctx = helpers.SetListCount(ctx, helpers.DNSRecordListKey, updatedCount)
+	// Update count in context by decrementing from previous count
+	// Consistent with other resource types (websites, zones) which don't re-list after deletion
+	if prevCount, ok := helpers.GetListCount(ctx, helpers.DNSRecordListKey); ok {
+		updatedCount := prevCount - len(identifiers)
+		if updatedCount < 0 {
+			updatedCount = 0
+		}
+		ctx = helpers.SetListCount(ctx, helpers.DNSRecordListKey, updatedCount)
+	}
 
 	return ctx, nil
 
