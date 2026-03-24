@@ -168,6 +168,7 @@ func (pp *PortalPinning) GetPin(ctx context.Context, cidString string) (bool, er
 // WaitForOperationCompleteByCID waits for the account operation for a CID to reach StatusCompleted
 // Uses the portal SDK's WaitForOperation method for polling
 func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time.Duration) error {
+	
 	// Get authenticated account client from context
 	api, err := RequireAuthenticatedClient(ctx)
 	if err != nil {
@@ -176,8 +177,11 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 
 	deadline := time.Now().Add(timeout)
 	pollInterval := 500 * time.Millisecond
+	pollCount := 0
 
 	for time.Now().Before(deadline) {
+		pollCount++
+		
 		// List operations filtered by CID
 		operations, err := api.ListOperations(ctx)
 		if err != nil {
@@ -199,7 +203,7 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 			}
 		}
 
-		if targetOp == nil {
+			if targetOp == nil {
 			// No operation found yet - wait and retry
 			time.Sleep(pollInterval)
 			continue

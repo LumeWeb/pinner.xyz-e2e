@@ -18,6 +18,10 @@ import (
 const (
 	// TagNoAuthReset preserves authentication state across scenarios when applied
 	TagNoAuthReset = "@noAuthReset"
+
+	// WebsiteStatusPollTimeout is the timeout for website status polling
+	// Set to 5 minutes to accommodate background job intervals (janitor runs every 1 minute)
+	WebsiteStatusPollTimeout = 5 * time.Minute
 )
 
 // StepsCommon provides shared step implementations and hook registration for all test suites
@@ -157,6 +161,8 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 		return ctx, err
 	}
 
+
+
 	// Clean up API keys created during the scenario
 	apiKeysToDelete := GetAPIKeyUUIDsCleanup(ctx)
 	if len(apiKeysToDelete) > 0 {
@@ -190,7 +196,14 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 		fmt.Printf("Warning: failed to cleanup DNS zones: %v\n", err)
 	}
 
+	// Clean up websites created during the scenario
+	// Must happen before IPNS keys cleanup since websites may reference IPNS keys
+	if err := CleanupWebsites(ctx); err != nil {
+		fmt.Printf("Warning: failed to cleanup websites: %v\n", err)
+	}
+
 	// Clean up IPNS keys created during the scenario
+	// Must happen after websites cleanup since keys are blocked while referenced by active websites
 	if err := CleanupIPNSKeys(ctx); err != nil {
 		fmt.Printf("Warning: failed to cleanup IPNS keys: %v\n", err)
 	}

@@ -40,11 +40,14 @@ core.storage.s3:
   secret_key: "FAKESECRETKEY"
 
 # IPFS P2P configuration - use port 4002 to avoid conflict with Kubo's port 4001
+plugin.ipfs.api:
+  gateway_secret: secret
 plugin.ipfs.protocol:
   listen_addresses:
     - "/ip4/0.0.0.0/tcp/4002"
     - "/ip4/0.0.0.0/udp/4002"
   dht_mode: basic
+  log_level: debug
 
 # PowerDNS configuration for DNS service
 plugin.ipfs.service.dns:
@@ -54,6 +57,14 @@ plugin.ipfs.service.dns:
       - ns2.portal.com.
   powerdns_api_url: "http://localhost:8081/api/v1"
   powerdns_api_key: "secret-api-key-for-testing"
+
+# Website service configuration with janitor settings
+plugin.ipfs.service.website:
+  janitor_enabled: true
+  check_interval: 10s  # Short interval for E2E testing
+  janitor_worker_count: 10
+  janitor_batch_size: 500
+
 # WARNING: This is a TEST seed for CI/CD purposes only.
 # This seed is INTENTIONALLY COMPROMISED and MUST NOT be used in production.
 # DO NOT use this seed for any real deployments or secure operations.

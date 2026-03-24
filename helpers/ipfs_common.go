@@ -45,8 +45,17 @@ func GetIPFSClient(ctx context.Context) (*ipfs.Client, error) {
 		return nil, fmt.Errorf("ipfs endpoint not configured")
 	}
 
+	// Get gateway secret for internal API authentication
+	gatewaySecret, err := GetGatewaySecret(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gateway secret: %w", err)
+	}
+
 	// Use host override for vhost routing (similar to account API)
-	client, err := ipfs.NewClient(ipfsEndpoint, token, ipfs.WithHostOverride(GetIPFSHost(), GetPortalTarget()))
+	// and gateway secret for internal API authentication
+	client, err := ipfs.NewClient(ipfsEndpoint, token,
+		ipfs.WithHostOverride(GetIPFSHost(), GetPortalTarget()),
+		ipfs.WithGatewaySecret(gatewaySecret))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IPFS client: %w", err)
 	}

@@ -92,6 +92,24 @@ const (
 	DNSRecordTypeKey        contextKey = "dns_record_type"
 	DNSRecordValueKey       contextKey = "dns_record_value"
 	DNSRecordListCountKey   contextKey = "dns_record_list_count"
+	DNSZoneListCountKey     contextKey = "dns_zone_list_count"
+
+	// Website context keys for website state management
+	WebsiteIDKey            contextKey = "website_id"
+	WebsiteDomainKey        contextKey = "website_domain"
+	WebsiteTargetHashKey    contextKey = "website_target_hash"
+	WebsiteTargetTypeKey    contextKey = "website_target_type"
+	WebsiteDnsHostingKey    contextKey = "website_dns_hosting_enabled"
+	WebsiteDnsZoneIDKey     contextKey = "website_dns_zone_id"
+	WebsiteSslStatusKey     contextKey = "website_ssl_status"
+	WebsiteStatusKey        contextKey = "website_status"
+	WebsiteValidationTokenKey contextKey = "website_validation_token"
+	WebsitesCleanupKey      contextKey = "websites_cleanup"
+	WebsiteListCountKey     contextKey = "website_list_count"
+	WebsiteIntendedDomainKey contextKey = "website_intended_domain"    // Intended domain from feature file (before randomization)
+	WebsiteIntendedTargetHashKey contextKey = "website_intended_target_hash" // Intended target hash (uploaded CID before IPNS conversion)
+	UploadResultKey         contextKey = "upload_result"
+	UploadOperationCompletedKey contextKey = "upload_operation_completed"
 )
 // =============================================================================
 // Generic Context Helpers
@@ -994,4 +1012,61 @@ func AddDNSZoneCleanup(ctx context.Context, zoneID string) context.Context {
 // GetDNSZonesCleanup retrieves DNS zones cleanup list
 func GetDNSZonesCleanup(ctx context.Context) []string {
 	return GetCleanupList[string](ctx, DNSZoneCleanupKey)
+}
+
+// =============================================================================
+// Upload Result Helpers
+// =============================================================================
+
+// UploadResult represents the result of an IPFS upload operation
+type UploadResult struct {
+	CID string
+}
+
+// SetUploadResult stores the upload result in context
+func SetUploadResult(ctx context.Context, result *UploadResult) context.Context {
+	return SetContextValue(ctx, UploadResultKey, result)
+}
+
+// GetUploadResult retrieves the upload result from context
+func GetUploadResult(ctx context.Context) (*UploadResult, bool) {
+	result, ok := GetContextValue[*UploadResult](ctx, UploadResultKey)
+	return result, ok
+}
+
+// =============================================================================
+// Website Intended Domain/Target Hash Helpers
+// =============================================================================
+
+// SetWebsiteIntendedDomain stores the intended domain from the feature file
+// This is used to track the domain before randomization for verification purposes
+func SetWebsiteIntendedDomain(ctx context.Context, domain string) context.Context {
+	return SetContextValue(ctx, WebsiteIntendedDomainKey, domain)
+}
+
+// GetWebsiteIntendedDomain retrieves the intended domain from context
+func GetWebsiteIntendedDomain(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, WebsiteIntendedDomainKey)
+}
+
+// SetWebsiteActualDomain stores the actual domain (randomized) sent to the API
+// This tracks the real domain that was used for website creation
+func SetWebsiteActualDomain(ctx context.Context, domain string) context.Context {
+	return SetContextValue(ctx, WebsiteDomainKey, domain)
+}
+
+// SetWebsiteIntendedTargetHash stores the intended target hash (uploaded CID)
+// This tracks the original CID before API converts it to IPNS peer ID
+func SetWebsiteIntendedTargetHash(ctx context.Context, targetHash string) context.Context {
+	return SetContextValue(ctx, WebsiteIntendedTargetHashKey, targetHash)
+}
+
+// GetWebsiteIntendedTargetHash retrieves the intended target hash from context
+func GetWebsiteIntendedTargetHash(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, WebsiteIntendedTargetHashKey)
+}
+
+// GetWebsiteActualDomain retrieves the actual domain from context
+func GetWebsiteActualDomain(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, WebsiteDomainKey)
 }

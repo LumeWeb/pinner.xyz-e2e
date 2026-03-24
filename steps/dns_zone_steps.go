@@ -89,7 +89,7 @@ func (s *DNSZoneSteps) theUserListsDNSZones(ctx context.Context) (context.Contex
 
 	// Store zone count in context for verification
 	zoneCount := len(zones)
-	ctx = helpers.SetContextValue(ctx, helpers.DNSZoneCleanupKey+"_count", zoneCount)
+	ctx = helpers.SetContextValue(ctx, helpers.DNSZoneListCountKey, zoneCount)
 
 	return ctx, nil
 }

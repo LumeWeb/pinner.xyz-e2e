@@ -109,4 +109,25 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	// Initialize DNS record management steps
 	dnsRecordSteps := steps.NewDNSRecordSteps()
 	dnsRecordSteps.InitializeScenario(ctx)
+
+	// Initialize website common steps (shared verification steps)
+	// Must be registered before service-specific website steps
+	websiteCommonSteps := steps.NewWebsiteCommonSteps()
+	websiteCommonSteps.InitializeScenario(ctx)
+
+	// Initialize website management steps
+	websiteSteps := steps.NewWebsiteSteps()
+	websiteSteps.InitializeScenario(ctx)
+
+	// Initialize website DNS validation steps
+	websiteDNSSteps := steps.NewWebsiteDNSSteps()
+	websiteDNSSteps.InitializeScenario(ctx)
+
+	// Initialize website IPNS verification steps
+	websiteIPNSSteps := steps.NewWebsiteIPNSSteps()
+	websiteIPNSSteps.InitializeScenario(ctx)
+
+	// Initialize website SSL verification steps
+	websiteSSLSteps := steps.NewWebsiteSSLSteps()
+	websiteSSLSteps.InitializeScenario(ctx)
 }
