@@ -564,12 +564,13 @@ func (s *WebsiteSteps) theUserListsWebsites(ctx context.Context) (context.Contex
 	}
 
 	// Store website count in context for verification
-
-	// Store website count in context for verification
 	websiteCount := len(websites)
-	ctx = helpers.SetContextValue(ctx, helpers.WebsiteListCountKey, websiteCount)
+	ctx = helpers.SetListCount(ctx, helpers.WebsiteListKey, websiteCount)
 
 	return ctx, nil
+
+
+
 }
 
 // theUserUpdatesTheWebsite updates an existing website

@@ -91,8 +91,8 @@ const (
 	DNSRecordFQDNKey        contextKey = "dns_record_fqdn"
 	DNSRecordTypeKey        contextKey = "dns_record_type"
 	DNSRecordValueKey       contextKey = "dns_record_value"
-	DNSRecordListCountKey   contextKey = "dns_record_list_count"
-	DNSZoneListCountKey     contextKey = "dns_zone_list_count"
+	DNSRecordListKey        contextKey = "dns_record_list"
+	DNSZoneListKey          contextKey = "dns_zone_list"
 
 	// Website context keys for website state management
 	WebsiteIDKey            contextKey = "website_id"
@@ -105,7 +105,7 @@ const (
 	WebsiteStatusKey        contextKey = "website_status"
 	WebsiteValidationTokenKey contextKey = "website_validation_token"
 	WebsitesCleanupKey      contextKey = "websites_cleanup"
-	WebsiteListCountKey     contextKey = "website_list_count"
+	WebsiteListKey          contextKey = "website_list"
 	WebsiteIntendedDomainKey contextKey = "website_intended_domain"    // Intended domain from feature file (before randomization)
 	WebsiteIntendedTargetHashKey contextKey = "website_intended_target_hash" // Intended target hash (uploaded CID before IPNS conversion)
 	UploadResultKey         contextKey = "upload_result"
@@ -170,6 +170,24 @@ func GetCleanupList[T any](ctx context.Context, key contextKey) []T {
 		return list
 	}
 	return []T{}
+}
+
+// =============================================================================
+// List Count Helpers
+// =============================================================================
+
+// SetListCount stores an integer count in context with "_count" suffix appended to the key
+// Takes a base key and automatically appends "_count" suffix for storage
+func SetListCount(ctx context.Context, baseKey contextKey, count int) context.Context {
+	countKey := contextKey(string(baseKey) + "_count")
+	return SetContextValue(ctx, countKey, count)
+}
+
+// GetListCount retrieves an integer count from context with "_count" suffix appended to the key
+// Takes a base key and automatically appends "_count" suffix for retrieval
+func GetListCount(ctx context.Context, baseKey contextKey) (int, bool) {
+	countKey := contextKey(string(baseKey) + "_count")
+	return GetContextValue[int](ctx, countKey)
 }
 
 // =============================================================================

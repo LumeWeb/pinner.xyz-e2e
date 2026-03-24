@@ -407,11 +407,11 @@ func (s *WebsiteCommonSteps) theWebsiteTargetHashMatchesTheUploadedCID(ctx conte
 
 // theWebsiteCountIsReturned verifies that website count is stored in context
 func (s *WebsiteCommonSteps) theWebsiteCountIsReturned(ctx context.Context) error {
-	_, ok := helpers.GetContextValue[int](ctx, helpers.WebsiteListCountKey)
+	_, ok := helpers.GetListCount(ctx, helpers.WebsiteListKey)
 	if !ok {
 		return fmt.Errorf("website count not stored in context")
 	}
-	
+
 	return nil
 }
 

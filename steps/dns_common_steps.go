@@ -248,9 +248,9 @@ func (s *DNSCommonSteps) theUserReceivesAZoneList(ctx context.Context) (context.
 // theZoneListContainsTheZoneCount verifies that the zone list has an expected count
 // This expects the count to have been stored in context by the list operation
 func (s *DNSCommonSteps) theZoneListContainsTheZoneCount(ctx context.Context) (context.Context, error) {
-	count, ok := helpers.GetContextValue[int](ctx, helpers.DNSZoneListCountKey)
+	count, ok := helpers.GetListCount(ctx, helpers.DNSZoneListKey)
 	if !ok {
-		return ctx, fmt.Errorf("zone count not found in context (key: %s)", helpers.DNSZoneListCountKey)
+		return ctx, fmt.Errorf("zone count not found in context (key: %s", helpers.DNSZoneListKey)
 	}
 	if count < 0 {
 		return ctx, fmt.Errorf("zone count is negative: %d", count)
@@ -280,9 +280,9 @@ func (s *DNSCommonSteps) theUserReceivesARecordList(ctx context.Context) (contex
 // theRecordListContainsTheRecordCount verifies that the record list has an expected count
 // This expects the count to have been stored in context by the list operation
 func (s *DNSCommonSteps) theRecordListContainsTheRecordCount(ctx context.Context) (context.Context, error) {
-	count, ok := helpers.GetContextValue[int](ctx, helpers.DNSRecordListCountKey)
+	count, ok := helpers.GetListCount(ctx, helpers.DNSRecordListKey)
 	if !ok {
-		return ctx, fmt.Errorf("record count not found in context (key: %s)", helpers.DNSRecordListCountKey)
+		return ctx, fmt.Errorf("record count not found in context (key: %s)", helpers.DNSRecordListKey)
 	}
 	if count < 0 {
 		return ctx, fmt.Errorf("record count is negative: %d", count)
@@ -293,9 +293,9 @@ func (s *DNSCommonSteps) theRecordListContainsTheRecordCount(ctx context.Context
 // theDNSRecordCountIs verifies the DNS record count matches expected
 // Uses the count stored in context from list operation instead of making another API call
 func (s *DNSCommonSteps) theDNSRecordCountIs(ctx context.Context, expectedCount int) (context.Context, error) {
-	count, ok := helpers.GetContextValue[int](ctx, helpers.DNSRecordListCountKey)
+	count, ok := helpers.GetListCount(ctx, helpers.DNSRecordListKey)
 	if !ok {
-		return ctx, fmt.Errorf("record count not found in context (key: %s)", helpers.DNSRecordListCountKey)
+		return ctx, fmt.Errorf("record count not found in context (key: %s)", helpers.DNSRecordListKey)
 	}
 
 	if count != expectedCount {
