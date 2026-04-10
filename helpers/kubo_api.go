@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ipfs/boxo/files"
 	"github.com/ipfs/boxo/path"
@@ -82,6 +83,48 @@ func getKuboClient() (*rpc.HttpApi, error) {
 	return kuboClient, kuboErr
 }
 
+// KuboWaitForSwarmPeers waits until Kubo has at least minimum swarm peers connected
+// This ensures peer connections are established before performing network operations
+// Polls every 500ms with a default timeout of 2 minutes
+func KuboWaitForSwarmPeers(ctx context.Context, minSwarmPeers int) error {
+	const (
+		pollInterval = 500 * time.Millisecond
+		timeout      = 2 * time.Minute
+	)
+
+	client, err := getKuboClient()
+	if err != nil {
+		return fmt.Errorf("failed to get Kubo client: %w", err)
+	}
+
+	if client.Swarm() == nil {
+		return fmt.Errorf("Kubo client Swarm API is nil")
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			peers, _ := client.Swarm().Peers(ctx)
+			return fmt.Errorf("timeout waiting for %d swarm peers (currently have %d)", minSwarmPeers, len(peers))
+		case <-ticker.C:
+			peers, err := client.Swarm().Peers(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve swarm peers: %w", err)
+			}
+
+			if len(peers) >= minSwarmPeers {
+				return nil
+			}
+		}
+	}
+}
+
 // KuboAdd adds the given content to local Kubo and returns the CID
 // This is ONLY for generating test CIDs that exist in the IPFS network
 func KuboAdd(ctx context.Context, content []byte) (string, error) {
@@ -130,6 +173,11 @@ func KuboAdd(ctx context.Context, content []byte) (string, error) {
 
 // KuboCat retrieves the content of a CID from local Kubo
 func KuboCat(ctx context.Context, cidString string) (string, error) {
+	// Ensure Kubo has at least 1 swarm peer before attempting operations
+	if err := KuboWaitForSwarmPeers(ctx, 1); err != nil {
+		return "", fmt.Errorf("swarm peer check failed: %w", err)
+	}
+
 	client, err := getKuboClient()
 	if err != nil {
 		return "", err
@@ -273,5 +321,23 @@ func KuboIPNSCreateKey(ctx context.Context, name string) (string, error) {
 	}
 
 	return key.Name(), nil
+}
+
+// KuboFetchViaIPFSNetwork fetches a CID via IPFS network by reading (catting) it
+// This triggers bitswap to download the content from the IPFS network if not local
+// Using cat instead of pin because pin is async and can cause race conditions with test cleanup
+// Portal tracks this download against the user's download quota
+func KuboFetchViaIPFSNetwork(ctx context.Context, cidString string) error {
+	// Note: KuboCat internally calls KuboWaitForSwarmPeers, ensuring sufficient
+	// swarm peers are available before triggering bitswap download
+	//
+	// This avoids race conditions where test cleanup deletes the quota plan before
+	// portal service can check download quota
+	_, err := KuboCat(ctx, cidString)
+	if err != nil {
+		return fmt.Errorf("failed to fetch content via IPFS network: %w", err)
+	}
+
+	return nil
 }
 

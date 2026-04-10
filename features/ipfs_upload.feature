@@ -5,7 +5,10 @@ Feature: IPFS Upload
   So that I can store and share my content on the decentralized web
 
   Background:
-    Given an existing registered user
+    Given the admin is authenticated
+    And the admin creates a new quota plan named "Default Test Plan"
+    And the admin sets the plan as default
+    And an existing registered user
     And the user is logged in
 
   @ipfs-upload-small-file

@@ -58,8 +58,14 @@ func (s *AuthSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^2FA is successfully disabled$`, s.twoFAIsSuccessfullyDisabled)
 	ctx.Step(`^the user can login without OTP verification$`, s.theUserCanLoginWithoutOTPVerification)
 
-	// Setup account API client
+		// Setup account API client
 	s.accountAPI = helpers.GetUnauthenticatedClient()
+	ctx.Step(`^the admin is authenticated$`, s.theAdminIsAuthenticated)
+}
+
+// theAdminIsAuthenticated authenticates an admin user and stores the admin client in context
+func (s *AuthSteps) theAdminIsAuthenticated(ctx context.Context) (context.Context, error) {
+	return helpers.CreateAdminClient(ctx)
 }
 
 // General authentication step implementations

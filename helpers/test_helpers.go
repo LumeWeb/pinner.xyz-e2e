@@ -7,9 +7,11 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	account "go.lumeweb.com/portal-sdk"
+	admin "go.lumeweb.com/portal-sdk/admin"
 	goCid "github.com/ipfs/go-cid"
 	"go.lumeweb.com/ipfs-content/encoding"
 
@@ -71,6 +73,7 @@ const (
 	TestDirectoryKey        contextKey = "test_directory"
 	PinnedStatusKey         contextKey = "pinned_status"
 	TestFilePathKey         contextKey = "test_file_path"
+	RawFileSizeKey          contextKey = "raw_file_size"
 	FileSizeKey             contextKey = "file_size"
 	DirectoryEntriesKey     contextKey = "directory_entries"
 
@@ -87,6 +90,8 @@ const (
 	DNSZoneIDKey            contextKey = "dns_zone_id"
 	DNSZoneDomainKey        contextKey = "dns_zone_domain"
 	DNSZoneCleanupKey       contextKey = "dns_zones_cleanup"
+	QuotaPlanIDsCleanupKey  contextKey = "quota_plan_ids_cleanup"
+	QuotaAllowanceIDsCleanupKey contextKey = "quota_allowance_ids_cleanup"
 	DNSRecordNameKey        contextKey = "dns_record_name"
 	DNSRecordFQDNKey        contextKey = "dns_record_fqdn"
 	DNSRecordTypeKey        contextKey = "dns_record_type"
@@ -106,10 +111,21 @@ const (
 	WebsiteValidationTokenKey contextKey = "website_validation_token"
 	WebsitesCleanupKey      contextKey = "websites_cleanup"
 	WebsiteListKey          contextKey = "website_list"
-	WebsiteIntendedDomainKey contextKey = "website_intended_domain"    // Intended domain from feature file (before randomization)
+	WebsiteIntendedDomainKey  contextKey = "website_intended_domain"    // Intended domain from feature file (before randomization)
 	WebsiteIntendedTargetHashKey contextKey = "website_intended_target_hash" // Intended target hash (uploaded CID before IPNS conversion)
-	UploadResultKey         contextKey = "upload_result"
+	UploadResultKey          contextKey = "upload_result"
 	UploadOperationCompletedKey contextKey = "upload_operation_completed"
+
+	// Admin quota context keys for admin quota management
+	ProcessedUsersKey        contextKey = "processed_users"
+	DeletedRecordsKey        contextKey = "deleted_records"
+
+	// Quota status context keys for user quota management
+	InitialQuotaStatusKey    contextKey = "initial_quota_status"
+	CurrentQuotaStatusKey    contextKey = "current_quota_status"
+	InitialBandwidthKey      contextKey = "initial_bandwidth"
+	QuotaHistoryKey          contextKey = "quota_history"
+	QuotaExhaustedKey        contextKey = "quota_exhausted"
 )
 // =============================================================================
 // Generic Context Helpers
@@ -201,7 +217,15 @@ type TestUser struct {
 	Username  string
 	FirstName string
 	LastName  string
+	IsAdmin   bool // Flag to indicate if this is the permanent admin account
 }
+
+// Global admin account storage
+// The first user registered in the portal becomes admin - we create this once and protect it
+var (
+	globalAdminAccount *TestUser
+	globalAdminInit     sync.Once
+)
 
 // GenerateUniqueEmail creates a unique email address for testing
 func GenerateUniqueEmail() string {
@@ -237,6 +261,88 @@ func CreateTestUser() *TestUser {
 		FirstName: GenerateFirstName(),
 		LastName:  GenerateLastName(),
 	}
+}
+
+// =============================================================================
+// Global Admin Account Management
+// =============================================================================
+// The first user registered in the portal receives admin privileges automatically.
+// We track the admin account globally to:
+// 1. Reuse the same admin for all admin scenarios
+// 2. Protect the admin account from accidental deletion
+// 3. Ensure consistent admin credentials across test runs
+
+// GetOrCreateAdminAccount retrieves the global admin account or creates it on first use.
+// The admin account is created once and reused across all test scenarios to match
+// the portal's "first registered user gets admin" behavior.
+// Uses sync.Once for thread-safe initialization.
+func GetOrCreateAdminAccount(ctx context.Context) *TestUser {
+	globalAdminInit.Do(func() {
+		globalAdminAccount = CreateTestUser()
+		globalAdminAccount.IsAdmin = true
+	})
+
+	return globalAdminAccount
+}
+
+// IsAdminAccount checks if the given TestUser is the global admin account.
+// Returns true if the user matches the admin account.
+func IsAdminAccount(user *TestUser) bool {
+	if globalAdminAccount == nil || user == nil {
+		return false
+	}
+	return user.Email == globalAdminAccount.Email
+}
+
+// EnsureAdminAccountExists ensures the admin account exists before any other user registration
+// This function is called during test setup to guarantee admin account is first user
+func EnsureAdminAccountExists(ctx context.Context) (context.Context, error) {
+	if globalAdminAccount != nil {
+		// Admin already tracked in global variable
+		return ctx, nil
+	}
+
+	// Get or create the global admin account
+	adminUser := GetOrCreateAdminAccount(ctx)
+
+	// Register the admin user (will be idempotent if already exists)
+	unauthClient := GetUnauthenticatedClient()
+	err := unauthClient.Register(ctx, adminUser.Email, adminUser.FirstName, adminUser.LastName, adminUser.Password)
+	if err != nil {
+		// User might already exist - this is acceptable for admin account
+		// The important thing is that admin account exists and is tracked
+		return ctx, nil
+	}
+
+	// Mark admin to prevent deletion (but don't add to normal user cleanup list)
+	return ctx, nil
+}
+
+// CreateAdminClient creates and authenticates an admin client using the global admin account.
+// This should be used for all admin quota management scenarios.
+func CreateAdminClient(ctx context.Context) (context.Context, error) {
+	adminUser := GetOrCreateAdminAccount(ctx)
+
+	// Try to register (idempotent - user might already exist)
+	unauthClient := GetUnauthenticatedClient()
+	unauthClient.Register(ctx, adminUser.Email, adminUser.FirstName, adminUser.LastName, adminUser.Password)
+
+	// Always login to get JWT (works whether fresh or existing user)
+	loginResult, loginErr := unauthClient.Login(ctx, adminUser.Email, adminUser.Password)
+	if loginErr != nil {
+		fmt.Printf("Error: Failed to login as admin: %v\n", loginErr)
+		return ctx, fmt.Errorf("failed to login as admin: %w", loginErr)
+	}
+
+	// Create admin client with JWT and host override
+	adminClient := admin.NewClient(
+		admin.WithEndpoint("http://localhost:8080"),
+		admin.WithJWT(loginResult.Token),
+		admin.WithHostOverride("admin.localhost:8080", "localhost:8080"),
+	)
+
+	ctx = SetAdminClient(ctx, adminClient)
+	return ctx, nil
 }
 
 // GenerateUniqueContent generates unique test content by appending a unique identifier
@@ -560,6 +666,26 @@ func GetAPIKeyUUIDsCleanup(ctx context.Context) []string {
 	return GetCleanupList[string](ctx, APIKeyUUIDsCleanupKey)
 }
 
+// AddQuotaPlanCleanup adds quota plan ID to cleanup list
+func AddQuotaPlanCleanup(ctx context.Context, planID int64) context.Context {
+	return AddToCleanupList(ctx, QuotaPlanIDsCleanupKey, planID)
+}
+
+// GetQuotaPlansCleanup retrieves quota plans cleanup list
+func GetQuotaPlansCleanup(ctx context.Context) []int64 {
+	return GetCleanupList[int64](ctx, QuotaPlanIDsCleanupKey)
+}
+
+// AddQuotaAllowanceCleanup adds quota allowance ID to cleanup list
+func AddQuotaAllowanceCleanup(ctx context.Context, allowanceID int64) context.Context {
+	return AddToCleanupList(ctx, QuotaAllowanceIDsCleanupKey, allowanceID)
+}
+
+// GetQuotaAllowancesCleanup retrieves quota allowances cleanup list
+func GetQuotaAllowancesCleanup(ctx context.Context) []int64 {
+	return GetCleanupList[int64](ctx, QuotaAllowanceIDsCleanupKey)
+}
+
 // SetAPIKeysList stores API keys list in context
 func SetAPIKeysList(ctx context.Context, keys []*account.APIKey) context.Context {
 	return SetContextValue(ctx, APIKeysListKey, keys)
@@ -879,12 +1005,22 @@ func GetKnownContent(ctx context.Context) (string, bool) {
 	return GetContextValue[string](ctx, contextKey("known_content"))
 }
 
-// SetFileSize stores file size in context for verification
-func SetFileSize(ctx context.Context, size int) context.Context {
-	return SetContextValue(ctx, FileSizeKey, size)
+// SetRawFileSize stores raw file size (DAG size) in context for verification
+func SetRawFileSize(ctx context.Context, size int) context.Context {
+	return SetContextValue(ctx, RawFileSizeKey, size)
 }
 
-// GetFileSize retrieves file size from context
+// GetRawFileSize retrieves raw file size (DAG size) from context
+func GetRawFileSize(ctx context.Context) (int, bool) {
+	return GetContextValue[int](ctx, RawFileSizeKey)
+}
+
+// SetFileSize stores unixfs/logical file size in context
+func SetFileSize(ctx context.Context, logicalSize int) context.Context {
+	return SetContextValue(ctx, FileSizeKey, logicalSize)
+}
+
+// GetFileSize retrieves computed file size from context
 func GetFileSize(ctx context.Context) (int, bool) {
 	return GetContextValue[int](ctx, FileSizeKey)
 }
@@ -1038,7 +1174,8 @@ func GetDNSZonesCleanup(ctx context.Context) []string {
 
 // UploadResult represents the result of an IPFS upload operation
 type UploadResult struct {
-	CID string
+	CID  string
+	Size int64 // Actual size of the uploaded content (CAR format size)
 }
 
 // SetUploadResult stores the upload result in context
@@ -1087,4 +1224,82 @@ func GetWebsiteIntendedTargetHash(ctx context.Context) (string, bool) {
 // GetWebsiteActualDomain retrieves the actual domain from context
 func GetWebsiteActualDomain(ctx context.Context) (string, bool) {
 	return GetContextValue[string](ctx, WebsiteDomainKey)
+}
+
+// =============================================================================
+// Quota status helpers for user quota management
+// =============================================================================
+
+// SetInitialQuotaStatus stores the initial quota status in context for comparison
+func SetInitialQuotaStatus(ctx context.Context, status *account.QuotaStatus) context.Context {
+	return SetContextValue(ctx, InitialQuotaStatusKey, status)
+}
+
+// GetInitialQuotaStatus retrieves the initial quota status from context
+func GetInitialQuotaStatus(ctx context.Context) (*account.QuotaStatus, bool) {
+	return GetContextValue[*account.QuotaStatus](ctx, InitialQuotaStatusKey)
+}
+
+// SetCurrentQuotaStatus stores the current quota status in context
+func SetCurrentQuotaStatus(ctx context.Context, status *account.QuotaStatus) context.Context {
+	return SetContextValue(ctx, CurrentQuotaStatusKey, status)
+}
+
+// GetCurrentQuotaStatus retrieves the current quota status from context
+func GetCurrentQuotaStatus(ctx context.Context) (*account.QuotaStatus, bool) {
+	return GetContextValue[*account.QuotaStatus](ctx, CurrentQuotaStatusKey)
+}
+
+// SetInitialBandwidth stores the initial bandwidth value in context
+func SetInitialBandwidth(ctx context.Context, bandwidth int64) context.Context {
+	return SetContextValue(ctx, InitialBandwidthKey, bandwidth)
+}
+
+// GetInitialBandwidth retrieves the initial bandwidth from context
+func GetInitialBandwidth(ctx context.Context) (int64, bool) {
+	return GetContextValue[int64](ctx, InitialBandwidthKey)
+}
+
+// SetQuotaHistory stores quota history in context
+func SetQuotaHistory(ctx context.Context, history *account.QuotaHistory) context.Context {
+	return SetContextValue(ctx, QuotaHistoryKey, history)
+}
+
+// GetQuotaHistory retrieves quota history from context
+func GetQuotaHistory(ctx context.Context) (*account.QuotaHistory, bool) {
+	return GetContextValue[*account.QuotaHistory](ctx, QuotaHistoryKey)
+}
+
+// SetQuotaExhausted marks that quota has been exhausted in context
+func SetQuotaExhausted(ctx context.Context, exhausted bool) context.Context {
+	return SetContextValue(ctx, QuotaExhaustedKey, exhausted)
+}
+
+// GetQuotaExhausted retrieves whether quota has been exhausted
+func GetQuotaExhausted(ctx context.Context) (bool, bool) {
+	return GetContextValue[bool](ctx, QuotaExhaustedKey)
+}
+
+// =============================================================================
+// Admin quota helpers
+// =============================================================================
+
+// SetProcessedUsers stores the count of processed users in context
+func SetProcessedUsers(ctx context.Context, count int) context.Context {
+	return SetContextValue(ctx, ProcessedUsersKey, count)
+}
+
+// GetProcessedUsers retrieves the count of processed users from context
+func GetProcessedUsers(ctx context.Context) (int, bool) {
+	return GetContextValue[int](ctx, ProcessedUsersKey)
+}
+
+// SetDeletedRecords stores the count of deleted records in context
+func SetDeletedRecords(ctx context.Context, count int) context.Context {
+	return SetContextValue(ctx, DeletedRecordsKey, count)
+}
+
+// GetDeletedRecords retrieves the count of deleted records from context
+func GetDeletedRecords(ctx context.Context) (int, bool) {
+	return GetContextValue[int](ctx, DeletedRecordsKey)
 }

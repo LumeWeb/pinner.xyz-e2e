@@ -4,17 +4,19 @@ go 1.26.0
 
 require (
 	github.com/cucumber/godog v0.15.1
+	github.com/docker/go-units v0.5.0
 	github.com/go-faker/faker/v4 v4.4.0
+	github.com/google/uuid v1.6.0
 	github.com/ipfs/boxo v0.37.0
 	github.com/ipfs/go-cid v0.6.0
 	github.com/ipfs/kubo v0.40.1
+	github.com/libp2p/go-libp2p v0.47.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/pquerna/otp v1.5.0
 	github.com/samber/lo v1.53.0
-	github.com/spf13/pflag v1.0.7
-	go.lumeweb.com/ipfs-content v0.1.8
-	go.lumeweb.com/ipfs-sdk v0.1.28
-	go.lumeweb.com/portal-sdk v0.1.11
+	go.lumeweb.com/ipfs-content v0.1.15
+	go.lumeweb.com/ipfs-sdk v0.1.34
+	go.lumeweb.com/portal-sdk v0.1.21-0.20260407212840-dee5002c683d
 )
 
 require (
@@ -35,12 +37,12 @@ require (
 	github.com/cucumber/messages/go/v21 v21.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gammazero/chanqueue v1.1.2 // indirect
 	github.com/gammazero/deque v1.2.1 // indirect
+	github.com/gammazero/workerpool v1.2.1 // indirect
 	github.com/getkin/kin-openapi v0.133.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -51,7 +53,6 @@ require (
 	github.com/gofrs/uuid v4.3.1+incompatible // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-memdb v1.3.4 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
@@ -83,7 +84,6 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-doh-resolver v0.5.0 // indirect
-	github.com/libp2p/go-libp2p v0.47.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-kad-dht v0.38.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.8.0 // indirect
@@ -120,6 +120,7 @@ require (
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb // indirect

@@ -6,3 +6,7 @@ plugins:
     version: develop
   - module: go.lumeweb.com/portal-plugin-core
     version: develop
+  - module: go.lumeweb.com/portal-plugin-quota
+    version: develop
+  - module: go.lumeweb.com/portal-plugin-admin
+    version: develop

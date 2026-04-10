@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	account "go.lumeweb.com/portal-sdk"
 	"go.lumeweb.com/ipfs-sdk"
 )
 
@@ -29,6 +30,7 @@ func GenerateTestFile(name string, content string) (string, error) {
 }
 
 // GetIPFSClient creates an IPFS SDK client using JWT token from context and portal endpoint
+// The client includes a download rate limiter that checks quota before allowing downloads.
 // Returns an error if JWT token is not available or if the endpoint is not configured
 func GetIPFSClient(ctx context.Context) (*ipfs.Client, error) {
 	token, ok := GetJWTToken(ctx)
@@ -45,17 +47,29 @@ func GetIPFSClient(ctx context.Context) (*ipfs.Client, error) {
 		return nil, fmt.Errorf("ipfs endpoint not configured")
 	}
 
+	// Get portal account client for rate limiter
+	api, err := RequireAuthenticatedClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get authenticated client: %w", err)
+	}
+
+	// Create download rate limiter that checks quota before allowing downloads
+	// Blocks downloads when quota usage reaches 98% to provide margin before hard limit
+	rateLimiter := account.CreateDownloadPercentLimitedRateLimiter(api, 98)
+
 	// Get gateway secret for internal API authentication
 	gatewaySecret, err := GetGatewaySecret(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get gateway secret: %w", err)
 	}
 
-	// Use host override for vhost routing (similar to account API)
-	// and gateway secret for internal API authentication
+	// Use host override for vhost routing (similar to account API),
+	// gateway secret for internal API authentication,
+	// and download rate limiter for quota enforcement
 	client, err := ipfs.NewClient(ipfsEndpoint, token,
 		ipfs.WithHostOverride(GetIPFSHost(), GetPortalTarget()),
-		ipfs.WithGatewaySecret(gatewaySecret))
+		ipfs.WithGatewaySecret(gatewaySecret),
+		ipfs.WithDownloadOption(ipfs.WithDownloadRateLimiter(rateLimiter)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IPFS client: %w", err)
 	}

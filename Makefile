@@ -134,8 +134,8 @@ setup-env: recreate-mysql
 	@echo "[OK] Environment configured"
 
 start-portal: build-portal setup-env
-	@./scripts/start-portal.sh .portal.log
 	@./scripts/setup-kubo-bootstrap.sh
+	@./scripts/start-portal.sh .portal.log
 
 restart-portal: stop-portal start-portal
 

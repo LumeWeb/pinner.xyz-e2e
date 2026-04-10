@@ -14,7 +14,7 @@ import (
 var opts = godog.Options{
 	Output:      colors.Colored(os.Stdout),
 	Format:      "pretty",
-	Concurrency: 4,
+	Concurrency: 1,
 }
 
 func init() {
@@ -130,4 +130,16 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	// Initialize website SSL verification steps
 	websiteSSLSteps := steps.NewWebsiteSSLSteps()
 	websiteSSLSteps.InitializeScenario(ctx)
+
+	// Initialize quota management steps (user-side)
+	quotaSteps := steps.NewQuotaSteps()
+	quotaSteps.InitializeScenario(ctx)
+
+	// Initialize admin quota management steps
+	adminQuotaSteps := steps.NewAdminQuotaSteps()
+	adminQuotaSteps.InitializeScenario(ctx)
+
+	// Initialize quota enforcement steps
+	quotaEnforcementSteps := steps.NewQuotaEnforcementSteps()
+	quotaEnforcementSteps.InitializeScenario(ctx)
 }

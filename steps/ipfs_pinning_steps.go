@@ -29,6 +29,7 @@ func (s *PinningSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 
 	// Single-step pinning approach
 	ctx.Step(`^the user pins the CID$`, s.theUserPinsTheCID)
+	ctx.Step(`^the user pins the content to IPFS$`, s.theUserPinsTheCID)
 	ctx.Step(`^the IPFS pin is created successfully$`, s.thePinIsCreatedSuccessfully)
 	ctx.Step(`^the new IPFS CID is pinned$`, s.theNewCIDIsPinned)
 	ctx.Step(`^the user has 3 pinned IPFS CIDs$`, s.theUserHas3PinnedCIDs)
@@ -402,7 +403,7 @@ func (s *PinningSteps) theUserUploadsAndPinsEachFile(ctx context.Context, count 
 	var cidsWithPins []string
 	for i := range cids {
 		content := []byte(fmt.Sprintf("test content %d", i))
-		cid, err := helpers.IPFSPortalUpload(ctx, content, fmt.Sprintf("file%d.txt", i))
+		cid, _, err := helpers.IPFSPortalUpload(ctx, content, fmt.Sprintf("file%d.txt", i))
 		if err != nil {
 			return ctx, fmt.Errorf("failed to upload file %d: %w", i, err)
 		}
