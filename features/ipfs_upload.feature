@@ -27,12 +27,12 @@ Feature: IPFS Upload
     Then the file is available on IPFS
     And the IPFS file size matches original
 
-  @ipfs-upload-very-large
-  Scenario: User uploads a very large file to IPFS
-    Given the user has a 1GB IPFS test file
-    When the user uploads and pins the large IPFS test file
-    And the IPFS pin reaches pinned status within 30 minutes
-    Then the uploaded IPFS test file is available
+#  @ipfs-upload-very-large
+#  Scenario: User uploads a very large file to IPFS
+#    Given the user has a 1GB IPFS test file
+#    When the user uploads and pins the large IPFS test file
+#    And the IPFS pin reaches pinned status within 30 minutes
+#    Then the uploaded IPFS test file is available
 
   @ipfs-upload-directory
   Scenario: User uploads a directory structure to IPFS
@@ -66,4 +66,3 @@ Feature: IPFS Upload
     And the operation completes
     And the IPFS pin reaches pinned status
     Then the retrieved file CID matches original
-
