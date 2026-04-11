@@ -1114,6 +1114,18 @@ func GetIPNSKeysCleanup(ctx context.Context) []string {
 	return GetCleanupList[string](ctx, IPNSKeysCleanupKey)
 }
 
+// RemoveIPNSKeyCleanup removes an IPNS key ID from cleanup list
+func RemoveIPNSKeyCleanup(ctx context.Context, keyID string) context.Context {
+	keyIDs := GetIPNSKeysCleanup(ctx)
+	newList := []string{}
+	for _, id := range keyIDs {
+		if id != keyID {
+			newList = append(newList, id)
+		}
+	}
+	return SetContextValue(ctx, IPNSKeysCleanupKey, newList)
+}
+
 // =============================================================================
 // DNS context helpers
 // =============================================================================
