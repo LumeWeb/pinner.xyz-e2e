@@ -36,7 +36,7 @@ func (s *QuotaEnforcementSteps) InitializeScenario(ctx *godog.ScenarioContext) e
 	
 	// Set limit based on actual uploaded file size
 	ctx.Step(`^the admin sets the download limit to the uploaded file size$`, s.theAdminSetsDownloadLimitToUploadedFileSize)
-	ctx.Step(`^the admin sets the upload total limit to match the pending upload DAG size$`, s.theAdminSetsUploadLimitToMatchPendingUploadDAGSize)
+	ctx.Step(`^the admin sets the upload total limit to match the pending upload DAG size$`, s.theAdminSetsUploadTotalLimitToMatchPendingUploadDAGSize)
 	ctx.Step(`^the admin sets the storage limit to match the pending upload DAG size$`, s.theAdminSetsStorageLimitToMatchPendingUploadDAGSize)
 
 	// Quota exhaustion and attempt steps
@@ -199,7 +199,7 @@ func (s *QuotaEnforcementSteps) theAdminSetsStorageLimitToMatchPendingUploadDAGS
 // theAdminSetsUploadLimitToMatchPendingUploadDAGSize calculates the DAG size for pending
 // upload content (stored in context) and sets the upload quota limit to match exactly.
 // This ensures the first upload succeeds and the second fails with quota exceeded.
-func (s *QuotaEnforcementSteps) theAdminSetsUploadLimitToMatchPendingUploadDAGSize(ctx context.Context) (context.Context, error) {
+func (s *QuotaEnforcementSteps) theAdminSetsUploadTotalLimitToMatchPendingUploadDAGSize(ctx context.Context) (context.Context, error) {
 	adminClient, err := helpers.RequireAdminClient(ctx)
 	if err != nil {
 		return ctx, err
