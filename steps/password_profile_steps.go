@@ -205,8 +205,8 @@ func (s *PasswordProfileSteps) userLogsOut(ctx context.Context) (context.Context
 	// Since the portal uses stateless JWTs, logout only clears local state.
 
 	// Clear local context tokens after logout
-	ctx = context.WithValue(ctx, helpers.JWTTokenKey, "")
-	ctx = context.WithValue(ctx, helpers.AuthenticatedClientKey, nil)
+	ctx = helpers.SetJWTToken(ctx, "")
+	ctx = helpers.SetAuthenticatedClient(ctx, nil)
 
 	return ctx, nil
 }

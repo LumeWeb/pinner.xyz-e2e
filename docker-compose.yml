@@ -51,9 +51,7 @@ services:
   ipfs:
     image: ipfs/kubo:latest
     container_name: portal-ipfs
-    ports:
-      - "4001:4001"
-      - "5001:5001"
+    network_mode: host
     environment:
       - IPFS_PROFILE=test
     healthcheck:
@@ -62,8 +60,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    networks:
-      - e2e-network
 
   powerdns:
     image: powerdns/pdns-auth-51:latest

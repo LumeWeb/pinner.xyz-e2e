@@ -167,8 +167,7 @@ func (pp *PortalPinning) GetPin(ctx context.Context, cidString string) (bool, er
 
 // WaitForOperationCompleteByCID waits for the account operation for a CID to reach StatusCompleted
 // Uses the portal SDK's WaitForOperation method for polling
-func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time.Duration) error {
-	
+func WaitForOperationByCID(ctx context.Context, cid string, timeout time.Duration, settledStates ...account.OperationStatus) error {
 	// Get authenticated account client from context
 	api, err := RequireAuthenticatedClient(ctx)
 	if err != nil {
@@ -216,9 +215,10 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 			}
 
 			// Use the SDK's built-in WaitForOperation with the operation ID
-			_, err = api.WaitForOperation(ctx, int64(targetOp.Id),
+			// Pass timeoutCtx instead of ctx to ensure proper timeout handling
+			_, err = api.WaitForOperation(timeoutCtx, int64(targetOp.Id),
 				account.WithPollInterval(pollInterval),
-				account.WithPollSettledStates(account.OperationStatusCompleted),
+				account.WithPollSettledStates(settledStates...),
 			)
 			if err != nil {
 				return fmt.Errorf("operation for CID %s failed: %w", cid, err)
@@ -227,6 +227,11 @@ func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time
 			return nil
 		}
 	}
+}
+
+// WaitForOperationCompleteByCID waits for the account operation for a CID to reach StatusCompleted
+func WaitForOperationCompleteByCID(ctx context.Context, cid string, timeout time.Duration) error {
+	return WaitForOperationByCID(ctx, cid, timeout, account.OperationStatusCompleted)
 }
 
 // IPFSPinAdd pins the given CID using Portal SDK
@@ -284,6 +289,11 @@ func WaitForPinCreation(ctx context.Context, cid string) error {
 // Call after WaitForPinCreation to verify operation completion
 func WaitForOperation(ctx context.Context, cid string) error {
 	return WaitForOperationCompleteByCID(ctx, cid, DefaultOperationTimeout)
+}
+
+// WaitForOperationFailed waits for the account operation for a CID to reach StatusFailed or OperationStatusError
+func WaitForOperationFailed(ctx context.Context, cid string) error {
+	return WaitForOperationByCID(ctx, cid, DefaultOperationTimeout, account.OperationStatusFailed, account.OperationStatusError)
 }
 
 // IPFSPinLs lists all pinned CIDs using Portal SDK (legacy wrapper)

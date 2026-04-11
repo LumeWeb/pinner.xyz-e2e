@@ -21,6 +21,7 @@ func (s *IPFSCommonSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	// Shared wait/verification steps for IPFS operations
 	ctx.Step(`^the IPFS pin reaches pinned status$`, s.theIPFSPinReachesPinnedStatus)
 	ctx.Step(`^the operation completes$`, s.theOperationCompletes)
+	ctx.Step(`^the operation fails$`, s.theOperationFails)
 	
 	// Plural versions for multi CID operations (e.g., concurrent uploads)
 	ctx.Step(`^all IPFS pins reach pinned status$`, s.allIPFSPinsReachPinnedStatus)
@@ -115,6 +116,21 @@ func (s *IPFSCommonSteps) theOperationCompletes(ctx context.Context) (context.Co
 
 	if err := helpers.WaitForOperation(ctx, cidStr); err != nil {
 		return ctx, fmt.Errorf("operation did not complete: %w", err)
+	}
+
+	return ctx, nil
+}
+
+// theOperationFails waits for the account operation to reach StatusFailed or OperationStatusError
+// Note: Operations are global (use account service - not service-specific)
+func (s *IPFSCommonSteps) theOperationFails(ctx context.Context) (context.Context, error) {
+	cidStr, err := helpers.RequireCID(ctx, "operation")
+	if err != nil {
+		return ctx, err
+	}
+
+	if err := helpers.WaitForOperationFailed(ctx, cidStr); err != nil {
+		return ctx, fmt.Errorf("operation did not fail as expected: %w", err)
 	}
 
 	return ctx, nil

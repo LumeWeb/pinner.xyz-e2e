@@ -5,7 +5,10 @@ Feature: IPFS Pinning
   So that my content remains available on the network
 
   Background:
-    Given an existing registered user
+    Given the admin is authenticated
+    And the admin creates a new quota plan named "Default Test Plan"
+    And the admin sets the plan as default
+    And an existing registered user
     And the user is logged in
 
   @ipfs-pin-existing-cid

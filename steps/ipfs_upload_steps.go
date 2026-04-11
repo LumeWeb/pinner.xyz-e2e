@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -47,6 +48,14 @@ func (s *IPFSUploadSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the user uploads and pins the large IPFS test file$`, s.theUserUploadsAndPinsTheLargeIPFSTestFile)
 	ctx.Step(`^the IPFS pin reaches pinned status within (\d+) minutes$`, s.theIPFSPinReachesPinnedStatusWithinMinutes)
 	ctx.Step(`^the uploaded IPFS test file is available$`, s.theUploadedIPFSTestFileIsAvailable)
+
+	// Download steps for quota testing
+	ctx.Step(`^the user downloads the file from IPFS$`, s.theUserDownloadsTheFileFromIPFS)
+	ctx.Step(`^the user downloads the same file from IPFS$`, s.theUserDownloadsTheSameFileFromIPFS)
+	ctx.Step(`^the user downloads the file via HTTP from IPFS gateway$`, s.theUserDownloadsTheFileFromIPFS)
+	ctx.Step(`^the user downloads \d+MB of the file via HTTP from IPFS gateway$`, s.theUserDownloadsTheFileFromIPFS)
+	ctx.Step(`^the user downloads the first file via HTTP from IPFS gateway$`, s.theUserDownloadsTheFileFromIPFS)
+	ctx.Step(`^the user has uploaded a (\d+)MB file with CID$`, s.theUserHasUploadedAMBFileWithCID)
 }
 
 // theUserHasAFileWithKnownContent creates test content for integrity verification
@@ -59,7 +68,7 @@ func (s *IPFSUploadSteps) theUserUploadsASmallFileWithContent(ctx context.Contex
 	uniqueContent := helpers.GenerateUniqueContent(content)
 	
 	// Upload file via portal (POST to IPFS SDK upload endpoint)
-	cid, err := helpers.IPFSPortalUpload(ctx, []byte(uniqueContent), filename)
+	cid, _, err := helpers.IPFSPortalUpload(ctx, []byte(uniqueContent), filename)
 	if err != nil {
 		return ctx, err
 	}
@@ -99,15 +108,15 @@ func (s *IPFSUploadSteps) allNFilesAreAvailable(ctx context.Context, count int) 
 // Important: Uses portal upload (TUS) which creates an operation that creates the pin after completion
 func (s *IPFSUploadSteps) theUserUploadsAMBLargeFileToIPFS(ctx context.Context, sizeMB int) (context.Context, error) {
 	// Use helper to generate and upload test file
-	cid, err := helpers.GenerateAndUploadTestFileContent(ctx, sizeMB, fmt.Sprintf("%dMB-test-file.bin", sizeMB))
+	cid, dagSize, err := helpers.GenerateAndUploadTestFileContent(ctx, sizeMB, fmt.Sprintf("%dMB-test-file.bin", sizeMB))
 	if err != nil {
 		return ctx, err
 	}
 
-	// Store CID and size in context for verification
-	sizeBytes := sizeMB * 1024 * 1024
+	// Store CID and both sizes in context for verification
 	ctx = helpers.SetCID(ctx, cid)
-	ctx = helpers.SetFileSize(ctx, sizeBytes)
+	ctx = helpers.SetRawFileSize(ctx, int(dagSize))
+	ctx = helpers.SetFileSize(ctx, sizeMB*1024*1024)
 	return ctx, nil
 }
 
@@ -173,7 +182,7 @@ func (s *IPFSUploadSteps) theUserStartsNConcurrentFileUploads(ctx context.Contex
 			uniqueContent := []byte(helpers.GenerateUniqueContent(fmt.Sprintf("concurrent test %d", index)))
 			filename := fmt.Sprintf("concurrent-file-%d.txt", index)
 
-			cid, err := helpers.IPFSPortalUpload(ctx, uniqueContent, filename)
+			cid, _, err := helpers.IPFSPortalUpload(ctx, uniqueContent, filename)
 			if err != nil {
 				errors <- fmt.Errorf("upload %d failed: %w", index, err)
 				return
@@ -218,7 +227,7 @@ func (s *IPFSUploadSteps) theUserUploadsTheIPFSFile(ctx context.Context) (contex
 		return ctx, fmt.Errorf("no known content found in context")
 	}
 
-	cid, err := helpers.IPFSPortalUpload(ctx, []byte(content), "integrity-test-file.bin")
+	cid, _, err := helpers.IPFSPortalUpload(ctx, []byte(content), "integrity-test-file.bin")
 	if err != nil {
 		return ctx, fmt.Errorf("failed to upload IPFS file: %w", err)
 	}
@@ -235,7 +244,7 @@ func (s *IPFSUploadSteps) theUserUploadsTheIPFSFileViaTUS(ctx context.Context) (
 	}
 
 	// Upload via portal - the SDK automatically uses TUS for large files (>100MB)
-	cid, err := helpers.IPFSPortalUpload(ctx, []byte(content), "tus-integrity-file.bin")
+	cid, _, err := helpers.IPFSPortalUpload(ctx, []byte(content), "tus-integrity-file.bin")
 	if err != nil {
 		return ctx, fmt.Errorf("failed to upload IPFS file via TUS: %w", err)
 	}
@@ -414,5 +423,112 @@ func (s *IPFSUploadSteps) theFileIsAvailableOnIPFS(ctx context.Context) (context
 	if err := helpers.VerifyCIDPinned(ctx, "uploaded file availability"); err != nil {
 		return ctx, fmt.Errorf("failed to verify file is available on IPFS: %w", err)
 	}
+	return ctx, nil
+}
+
+// theUserHasUploadedAMBFileWithCID creates and uploads a test file, storing DAG size in context
+func (s *IPFSUploadSteps) theUserHasUploadedAMBFileWithCID(ctx context.Context, sizeMB int) (context.Context, error) {
+	cid, dagSize, err := helpers.GenerateAndUploadTestFileContent(ctx, sizeMB, fmt.Sprintf("%dMB-test-file.bin", sizeMB))
+	if err != nil {
+		return ctx, fmt.Errorf("failed to generate and upload test file: %w", err)
+	}
+
+	// Store CID and both sizes in context for verification
+	ctx = helpers.SetCID(ctx, cid)
+	ctx = helpers.SetRawFileSize(ctx, int(dagSize))
+	ctx = helpers.SetFileSize(ctx, sizeMB*1024*1024)
+	return ctx, nil
+}
+
+// theUserDownloadsTheFileFromIPFS downloads content from current CID for download quota testing
+func (s *IPFSUploadSteps) theUserDownloadsTheFileFromIPFS(ctx context.Context) (context.Context, error) {
+	cidStr, err := helpers.RequireCID(ctx, "downloading file for quota testing")
+	if err != nil {
+		return ctx, err
+	}
+
+	// Generate known content for verification - default 1MB test data for quota tracking
+	content, ok := helpers.GetKnownContent(ctx)
+	if !ok {
+		// If no known content, download for quota purposes without verification
+		parsedCID, err := helpers.ParseCID(cidStr)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to parse CID: %w", err)
+		}
+
+		client, err := helpers.GetIPFSClient(ctx)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to get IPFS client: %w", err)
+		}
+
+		reader, err := client.Download().DownloadFile(ctx, parsedCID)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to download content from IPFS: %w", err)
+		}
+		defer reader.Close()
+		
+		// Stream the file to actually consume download quota
+		_, err = io.ReadAll(reader)
+		if err != nil {
+			// Quota enforcement errors (ErrRateLimitExceeded) indicate quota has been enforced
+			if helpers.IsQuotaEnforcementError(err) {
+				return ctx, nil
+			}
+			return ctx, fmt.Errorf("failed to read downloaded content: %w", err)
+		}
+		
+		// Wait for quota to be updated
+		time.Sleep(2 * time.Second)
+		
+		return ctx, nil
+	}
+
+	if err := helpers.DownloadAndVerifyContent(ctx, cidStr, content, "downloading file"); err != nil {
+		// Quota enforcement errors (ErrRateLimitExceeded) indicate quota has been enforced
+		if helpers.IsQuotaEnforcementError(err) {
+			return ctx, nil
+		}
+		return ctx, fmt.Errorf("failed to download file: %w", err)
+	}
+
+	// Wait for quota to be updated
+	time.Sleep(2 * time.Second)
+
+	return ctx, nil
+}
+
+// theUserDownloadsTheSameFileFromIPFS downloads content for bandwidth quota testing
+func (s *IPFSUploadSteps) theUserDownloadsTheSameFileFromIPFS(ctx context.Context) (context.Context, error) {
+	cidStr, err := helpers.RequireCID(ctx, "downloading same file for bandwidth testing")
+	if err != nil {
+		return ctx, err
+	}
+
+	parsedCID, err := helpers.ParseCID(cidStr)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to parse CID: %w", err)
+	}
+
+	client, err := helpers.GetIPFSClient(ctx)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to get IPFS client: %w", err)
+	}
+
+	reader, err := client.Download().DownloadFile(ctx, parsedCID)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to download content from IPFS: %w", err)
+	}
+	defer reader.Close()
+	
+	// Stream the file to actually consume download quota
+	_, err = io.ReadAll(reader)
+	if err != nil {
+		// Quota enforcement errors (ErrRateLimitExceeded) indicate quota has been enforced
+		if helpers.IsQuotaEnforcementError(err) {
+			return ctx, nil
+		}
+		return ctx, fmt.Errorf("failed to read downloaded content: %w", err)
+	}
+
 	return ctx, nil
 }

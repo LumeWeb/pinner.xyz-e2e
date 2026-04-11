@@ -1,8 +1,8 @@
 #!/bin/bash
 # shellcheck disable=SC1091
 
-# setup-kubo-bootstrap.sh - Add portal to kubo's bootstrap list
-# This script should be run after both kubo and portal are started
+# setup-kubo-bootstrap.sh - Configure kubo bootstrapping
+# This script should be run after kubo is started
 
 set -e
 
@@ -11,36 +11,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # shellcheck source=scripts/config.sh
 source "${SCRIPT_DIR}/config.sh"
 
-# Load environment variables from .env
+# Load environment variables from .env for PORTAL_IPFS_PEER_ID
 set -a
 . scripts/load-env.sh
 set +a
 
-IPFS_API_ENDPOINT="${IPFS_API_ENDPOINT:-http://localhost:5001}"
-PORTAL_HOST="${PORTAL_HOST:-localhost:8080}"
-
 echo "Setting up kubo bootstrap configuration..."
-echo "IPFS API: $IPFS_API_ENDPOINT"
-echo "Portal: $PORTAL_HOST"
-
-# Wait for portal to be ready
-echo "Waiting for portal to be ready..."
-if ! ./scripts/wait-portal.sh; then
-    echo "✗ Portal health check failed"
-    exit 1
-fi
-
-# Add portal peer to kubo's bootstrap list
-echo "Adding portal to kubo bootstrap list..."
-
-# Detect if running in CI (GitHub Actions) or locally
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    # In CI, use the docker bridge gateway
-    portal_ip="172.17.0.1"
-else
-    # In local dev, inspect docker network to get gateway IP
-    portal_ip=$(docker network inspect bridge --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || echo "172.17.0.1")
-fi
 
 # Find the kubo container
 # Try named container first, then find by image if not found
@@ -67,14 +43,23 @@ echo "Verifying swarm addresses..."
 swarm_addrs=$(docker exec "$IPFS_CONTAINER" ipfs config Addresses.Swarm)
 echo "Current swarm addresses: $swarm_addrs"
 
+# Configure gateway address
+echo "Configuring gateway address..."
+docker exec "$IPFS_CONTAINER" ipfs config --json Addresses.Gateway '"/ip4/127.0.0.1/tcp/8082"' > /dev/null 2>&1
+
+# Verify gateway address is configured
+echo "Verifying gateway address..."
+gateway_addr=$(docker exec "$IPFS_CONTAINER" ipfs config Addresses.Gateway)
+echo "Current gateway address: $gateway_addr"
+
 # Add portal peer to kubo bootstrap
 # Portal uses port 4002 to avoid conflict with Kubo's port 4001
 # Use deterministic portal peer ID from environment variable or shared config
 PORTAL_IPFS_PEER_ID="${PORTAL_IPFS_PEER_ID:-$DEFAULT_PORTAL_IPFS_PEER_ID}"
 echo "Using portal peer ID: $PORTAL_IPFS_PEER_ID"
 
-docker exec "$IPFS_CONTAINER" ipfs bootstrap add "/ip4/$portal_ip/tcp/4002/p2p/$PORTAL_IPFS_PEER_ID" > /dev/null 2>&1 || \
-docker exec "$IPFS_CONTAINER" ipfs bootstrap add "/ip4/$portal_ip/udp/4002/p2p/$PORTAL_IPFS_PEER_ID" > /dev/null 2>&1 || true
+# Add portal peer to kubo bootstrap using 127.0.0.1
+docker exec "$IPFS_CONTAINER" ipfs bootstrap add "/ip4/127.0.0.1/tcp/4002/p2p/$PORTAL_IPFS_PEER_ID" > /dev/null 2>&1 || true
 
 # Restart kubo to apply bootstrap changes
 echo "Restarting kubo to apply bootstrap configuration..."
@@ -89,8 +74,8 @@ echo "Verifying kubo bootstrap list..."
 bootstrap_list=$(docker exec "$IPFS_CONTAINER" ipfs bootstrap list)
 echo "Bootstrap list: $bootstrap_list"
 
-# Check if portal IP is in the bootstrap list
-if echo "$bootstrap_list" | grep -q "$portal_ip"; then
+# Check if portal peer is in the bootstrap list
+if echo "$bootstrap_list" | grep -q "$PORTAL_IPFS_PEER_ID"; then
     echo "✓ Successfully added portal to kubo bootstrap list"
 else
     echo "⚠ Failed to find portal in bootstrap list, but continuing..."

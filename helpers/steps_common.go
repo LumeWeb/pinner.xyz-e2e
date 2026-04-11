@@ -13,6 +13,7 @@ import (
 
 	"github.com/cucumber/godog"
 	account "go.lumeweb.com/portal-sdk"
+	"go.lumeweb.com/portal-sdk/admin"
 )
 
 const (
@@ -98,6 +99,16 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	}
 
 	logger := NewLogger(sc.Name)
+	logger.Debug(ctx, "=== Starting scenario: %s ===", sc.Name)
+	
+	// Log scenario tags for debugging
+	if sc.Tags != nil && len(sc.Tags) > 0 {
+		tags := make([]string, len(sc.Tags))
+		for i, tag := range sc.Tags {
+			tags[i] = tag.Name
+		}
+		logger.Debug(ctx, "Scenario tags: %v", tags)
+	}
 
 	ctx = context.WithValue(ctx, APIKeyUUIDsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, TestUsersCleanupKey, []string{})
@@ -112,8 +123,10 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	ctx = context.WithValue(ctx, DNSZoneDomainKey, "")
 	ctx = context.WithValue(ctx, DNSRecordNameKey, "")
 	ctx = context.WithValue(ctx, DNSRecordTypeKey, "")
+	logger.Debug(ctx, "Initialized cleanup tracking context")
 
 	token, ok := GetJWTToken(ctx)
+	logger.Debug(ctx, "Existing JWT token present: %v", ok)
 
 	hasNoAuthReset := false
 	if sc.Tags != nil {
@@ -129,17 +142,21 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	// This prevents scenarios from leaking authentication state to each other
 	if !hasNoAuthReset {
 		ctx = context.WithValue(ctx, AuthenticatedClientKey, nil)
+		logger.Debug(ctx, "Reset authenticated client")
 	}
 
 	// Clean up existing pins if JWT token is available
 	// This is necessary for test isolation when multiple scenarios run concurrently
 	if ok && token != "" {
+		logger.Debug(ctx, "Cleaning up existing pins for test isolation")
 		if err := CleanupAllPinsForUser(ctx); err != nil {
 			logger.Warn(ctx, "Failed to cleanup existing pins: %v", err)
 		} else {
 			logger.Info(ctx, "Cleaned up existing pins for test isolation")
 		}
 	}
+
+	logger.Debug(ctx, "=== Scenario setup complete ===")
 
 	return ctx, recoveredErr
 }
@@ -163,55 +180,103 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 
 
 
+	var logger *Logger
+	if sc != nil {
+		logger = NewLogger(sc.Name)
+		logger.Debug(ctx, "=== Starting cleanup for scenario: %s ===", sc.Name)
+	}
+
 	// Clean up API keys created during the scenario
 	apiKeysToDelete := GetAPIKeyUUIDsCleanup(ctx)
+	if logger != nil {
+		logger.Debug(ctx, "API keys to cleanup: %d", len(apiKeysToDelete))
+	}
 	if len(apiKeysToDelete) > 0 {
 		for _, uuid := range apiKeysToDelete {
+			logger.Debug(ctx, "Deleting API key: %s", uuid)
 			if deleteErr := DeleteAPIKeyGracefully(ctx, uuid); deleteErr != nil {
-				fmt.Printf("Warning: failed to delete API key %s: %v\n", uuid, deleteErr)
+				logger.Error(ctx, "Failed to delete API key %s: %v", uuid, deleteErr)
+			} else {
+				logger.Debug(ctx, "Successfully deleted API key: %s", uuid)
 			}
 		}
 	}
 
 	// Clean up test users created during the scenario
 	testUsersToDelete := GetTestUsersCleanup(ctx)
+	if logger != nil {
+		logger.Debug(ctx, "Test users to cleanup: %d", len(testUsersToDelete))
+	}
 	if len(testUsersToDelete) > 0 {
 		for _, email := range testUsersToDelete {
+			logger.Debug(ctx, "Deleting test user: %s", email)
 			if deleteErr := DeleteTestUserGracefully(ctx, email); deleteErr != nil {
-				fmt.Printf("Warning: failed to delete test user %s: %v\n", email, deleteErr)
+				logger.Error(ctx, "Failed to delete test user %s: %v", email, deleteErr)
+			} else {
+				logger.Debug(ctx, "Successfully deleted test user: %s", email)
 			}
 		}
 	}
 
 	operationIDs := GetOperationsCleanup(ctx)
+	if logger != nil {
+		logger.Debug(ctx, "Operations to track cleanup: %d", len(operationIDs))
+	}
 	for _, idStr := range operationIDs {
-		fmt.Printf("Info: operation %s cleanup tracking\n", idStr)
+		logger.Debug(ctx, "Operation %s cleanup tracking", idStr)
 	}
 
 	// Clean up IPFS assets created during the scenario
+	if logger != nil {
+		logger.Debug(ctx, "Cleaning up IPFS assets")
+	}
 	cleanupIPFSAssets(ctx)
 
 	// Clean up DNS zones created during the scenario
+	if logger != nil {
+		logger.Debug(ctx, "Cleaning up DNS zones")
+	}
 	if err := CleanupDNSZones(ctx); err != nil {
-		fmt.Printf("Warning: failed to cleanup DNS zones: %v\n", err)
+		logger.Error(ctx, "Failed to cleanup DNS zones: %v", err)
 	}
 
 	// Clean up websites created during the scenario
 	// Must happen before IPNS keys cleanup since websites may reference IPNS keys
+	if logger != nil {
+		logger.Debug(ctx, "Cleaning up websites")
+	}
 	if err := CleanupWebsites(ctx); err != nil {
-		fmt.Printf("Warning: failed to cleanup websites: %v\n", err)
+		logger.Error(ctx, "Failed to cleanup websites: %v", err)
 	}
 
 	// Clean up IPNS keys created during the scenario
 	// Must happen after websites cleanup since keys are blocked while referenced by active websites
+	if logger != nil {
+		logger.Debug(ctx, "Cleaning up IPNS keys")
+	}
 	if err := CleanupIPNSKeys(ctx); err != nil {
-		fmt.Printf("Warning: failed to cleanup IPNS keys: %v\n", err)
+		logger.Error(ctx, "Failed to cleanup IPNS keys: %v", err)
+	}
+
+	// Clean up admin quota resources created during the scenario
+	if logger != nil {
+		logger.Debug(ctx, "Cleaning up admin quota resources")
+	}
+	if err := CleanupAdminQuota(ctx); err != nil {
+		logger.Error(ctx, "Failed to cleanup admin quota resources: %v", err)
 	}
 
 	// Record scenario timing after all cleanup to avoid output interleaving
 	if startTime, ok := GetContextValue[time.Time](ctx, ScenarioStartTimeKey); ok {
 		elapsed := time.Since(startTime)
 		RecordScenarioTiming(sc.Name, elapsed)
+		if logger != nil {
+			logger.Debug(ctx, "Scenario completed in: %v", elapsed)
+		}
+	}
+
+	if logger != nil {
+		logger.Debug(ctx, "=== Cleanup complete ===")
 	}
 
 	return ctx, err
@@ -364,11 +429,19 @@ func GetHTTPClient(token ...string) *HTTPClient {
 }
 
 // RegisterTestUser registers a new test user and stores them in context
+// Ensures the admin account exists before registering the scenario user
 func RegisterTestUser(ctx context.Context) (context.Context, error) {
+	// Ensure admin account exists before any user registration
+	// The first registered user gets admin privileges, so we must create admin first
+	_, err := EnsureAdminAccountExists(ctx)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to ensure admin account: %w", err)
+	}
+
 	api := GetUnauthenticatedClient()
 	testUser := CreateTestUser()
 
-	err := api.Register(ctx, testUser.Email, testUser.FirstName, testUser.LastName, testUser.Password)
+	err = api.Register(ctx, testUser.Email, testUser.FirstName, testUser.LastName, testUser.Password)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to register user: %w", err)
 	}
@@ -750,4 +823,30 @@ func GetResponseJSON(resp *http.Response) (map[string]any, error) {
 	}
 
 	return data, nil
+}
+
+// Admin client helpers for E2E testing
+
+// AdminClientContextKey is the context key for storing admin client
+const AdminClientContextKey contextKey = "admin_client"
+
+// SetAdminClient stores the admin client in context using generic helper
+func SetAdminClient(ctx context.Context, client *admin.AdminClient) context.Context {
+	return SetContextValue(ctx, AdminClientContextKey, client)
+}
+
+// GetAdminClient retrieves the admin client from context using generic helper
+func GetAdminClient(ctx context.Context) *admin.AdminClient {
+	client, _ := GetContextValue[*admin.AdminClient](ctx, AdminClientContextKey)
+	return client
+}
+
+// RequireAdminClient retrieves the admin client from context or returns an error
+func RequireAdminClient(ctx context.Context) (*admin.AdminClient, error) {
+	client := GetAdminClient(ctx)
+	if client == nil {
+		fmt.Printf("Error: no admin client available in context\n")
+		return nil, fmt.Errorf("no admin client available in context")
+	}
+	return client, nil
 }

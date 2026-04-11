@@ -18,6 +18,8 @@ yq -n '.portalVersion = "develop"' > portal-plugins.yaml
 yq -i '.plugins[0].module = "go.lumeweb.com/portal-plugin-ipfs" | .plugins[0].version = "develop"' portal-plugins.yaml
 yq -i '.plugins[1].module = "go.lumeweb.com/portal-plugin-dashboard" | .plugins[1].version = "develop"' portal-plugins.yaml
 yq -i '.plugins[2].module = "go.lumeweb.com/portal-plugin-core" | .plugins[2].version = "develop"' portal-plugins.yaml
+yq -i '.plugins[3].module = "go.lumeweb.com/portal-plugin-quota" | .plugins[3].version = "develop"' portal-plugins.yaml
+yq -i '.plugins[4].module = "go.lumeweb.com/portal-plugin-admin" | .plugins[4].version = "develop"' portal-plugins.yaml
 
 echo "Created portal-plugins.yaml:"
 cat portal-plugins.yaml

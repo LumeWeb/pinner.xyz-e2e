@@ -85,15 +85,6 @@ jobs:
         options: >-
           --name gofakes3
       
-      ipfs:
-        image: ipfs/kubo:latest
-        ports:
-          - 4001:4001
-          - 5001:5001
-        env:
-          IPFS_PROFILE: "test"
-        options: >-
-          --name portal-ipfs
       
       powerdns:
         image: powerdns/pdns-auth-51:latest
@@ -125,6 +116,9 @@ jobs:
         name: portal-build
         path: dist/
     
+    - name: Start IPFS in host mode
+      uses: ./.github/actions/start-ipfs
+    
     - name: Wait for Services
       run: |
         sleep 5
@@ -151,16 +145,6 @@ jobs:
       with:
         renterd_url: ${{ secrets.RENTERD_URL }}
         renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
-    
-    - name: Wait for Portal
-      run: |
-        chmod +x ./scripts/wait-portal.sh
-        ./scripts/wait-portal.sh
-    
-    - name: Setup Kubo Bootstrap
-      run: |
-        chmod +x ./scripts/setup-kubo-bootstrap.sh
-        ./scripts/setup-kubo-bootstrap.sh
     
     - name: Run E2E Tests
       id: run-e2e-tests

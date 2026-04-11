@@ -1,0 +1,13 @@
+name: Start IPFS in Host Network
+description: Start IPFS container with --network=host
+runs:
+  using: composite
+  steps:
+    - name: Start IPFS
+      shell: bash
+      run: |
+        docker run -d \
+          --network=host \
+          --name portal-ipfs \
+          -e IPFS_PROFILE=test \
+          ipfs/kubo:latest

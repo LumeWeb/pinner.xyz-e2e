@@ -44,6 +44,10 @@ runs:
         chmod +x ./scripts/start-dns.sh
         ./scripts/start-dns.sh
         
+        # Setup Kubo bootstrap (before starting portal)
+        chmod +x ./scripts/setup-kubo-bootstrap.sh
+        ./scripts/setup-kubo-bootstrap.sh
+        
         # Start portal in background with logging (PORTAL_PORT from .env or default to 8080)
         chmod +x ./scripts/start-portal.sh
         /bin/bash ./scripts/start-portal.sh ${{ inputs.log_file }}

@@ -47,19 +47,23 @@ func CreateIPNSKey(ctx context.Context, name string) (context.Context, *ipfs_sdk
 	return ctx, key, nil
 }
 
-// DeleteIPNSKey deletes an IPNS key by ID
-func DeleteIPNSKey(ctx context.Context, keyID string) error {
+// DeleteIPNSKey deletes an IPNS key by ID and removes it from cleanup list
+// Returns the updated context or an error
+func DeleteIPNSKey(ctx context.Context, keyID string) (context.Context, error) {
 	ipnsService, err := RequireIPNSService(ctx)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
 	err = ipnsService.DeleteKey(ctx, keyID)
 	if err != nil {
-		return fmt.Errorf("failed to delete IPNS key %s: %w", keyID, err)
+		return ctx, fmt.Errorf("failed to delete IPNS key %s: %w", keyID, err)
 	}
 
-	return nil
+	// Remove from cleanup list to prevent duplicate deletion
+	ctx = RemoveIPNSKeyCleanup(ctx, keyID)
+
+	return ctx, nil
 }
 
 // CleanupIPNSKeys removes all IPNS keys tracked in the cleanup list

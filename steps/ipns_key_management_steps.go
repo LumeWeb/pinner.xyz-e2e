@@ -166,7 +166,7 @@ func (s *IPNSKeyManagementSteps) theUserDeletesTheIPNSKey(ctx context.Context) (
 		return ctx, fmt.Errorf("no IPNS key ID found in context")
 	}
 
-	err := helpers.DeleteIPNSKey(ctx, strconv.Itoa(keyID))
+	ctx, err := helpers.DeleteIPNSKey(ctx, strconv.Itoa(keyID))
 	if err != nil {
 		return ctx, err
 	}

@@ -107,17 +107,21 @@ ps:
 	docker compose ps
 
 # Portal Build & Run
-./dist/portal: portal-plugins.yaml
-	@echo "Building portal with plugins using portal-builder..."
-	docker run --rm \
-		-v "$(PWD):/workspace" \
-		-v "$(PWD)/dist:/dist" \
-		ghcr.io/lumeweb/portal-builder:ubuntu \
-		build-portal
-	@echo "[OK] Portal built successfully"
-
-build-portal: ./dist/portal
-	@echo "[OK] Portal is ready"
+# Note: portal-plugins.yaml is updated automatically but only triggers rebuild if ./dist/portal is missing
+build-portal:
+	@echo "Checking portal build status..."
+	@./scripts/create-plugin-manifest.sh || echo "[WARN] Failed to create plugin manifest"
+	@if [ ! -f ./dist/portal ]; then \
+		echo "Building portal with plugins using portal-builder..."; \
+		docker run --rm \
+			-v "$(PWD):/workspace" \
+			-v "$(PWD)/dist:/dist" \
+			ghcr.io/lumeweb/portal-builder:ubuntu \
+			build-portal; \
+		echo "[OK] Portal built successfully"; \
+	else \
+		echo "[OK] Portal is ready"; \
+	fi
 
 rebuild-portal:
 	@echo "Rebuilding portal..."
@@ -125,17 +129,14 @@ rebuild-portal:
 	@$(MAKE) build-portal
 	@echo "[OK] Portal rebuilt successfully"
 
-portal-plugins.yaml:
-	@./scripts/create-plugin-manifest.sh
-
 setup-env: recreate-mysql
 	@echo "Generating environment variables..."
 	@./scripts/setup-env.sh mysql false
 	@echo "[OK] Environment configured"
 
 start-portal: build-portal setup-env
-	@./scripts/start-portal.sh .portal.log
 	@./scripts/setup-kubo-bootstrap.sh
+	@./scripts/start-portal.sh .portal.log
 
 restart-portal: stop-portal start-portal
 

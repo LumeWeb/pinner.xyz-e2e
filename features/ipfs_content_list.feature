@@ -5,7 +5,9 @@ Feature: IPFS Content List and Filtering
   So that I can find and manage my files
 
   Background:
-    Given an existing registered user
+    Given the admin is authenticated
+    And the quota plan is set up
+    And an existing registered user
     And the user is logged in
 
   @ipfs-list-all-content

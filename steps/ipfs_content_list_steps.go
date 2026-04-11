@@ -54,7 +54,7 @@ func (s *ContentListSteps) theUserHasUploadedFiles(ctx context.Context) (context
 		buf = fmt.Appendf(buf, "test content %d", index)
 		
 		// Upload file via portal (POST to IPFS SDK upload endpoint)
-		cid, err := helpers.IPFSPortalUpload(ctx, buf, fmt.Sprintf("file%d.txt", index+1))
+		cid, _, err := helpers.IPFSPortalUpload(ctx, buf, fmt.Sprintf("file%d.txt", index+1))
 		if err != nil {
 			return ctx, fmt.Errorf("failed to upload file %d: %w", index, err)
 		}
@@ -104,7 +104,7 @@ func (s *ContentListSteps) theUserHasUploadedFilesNamed(ctx context.Context, arg
 		buf := []byte{}
 		buf = fmt.Appendf(buf, "test content for %s", tf.Name)
 		
-		cid, err := helpers.IPFSPortalUpload(ctx, buf, tf.Name)
+		cid, _, err := helpers.IPFSPortalUpload(ctx, buf, tf.Name)
 		if err != nil {
 			return ctx, fmt.Errorf("failed to upload file %s: %w", tf.Name, err)
 		}
@@ -225,7 +225,7 @@ func (s *ContentListSteps) theUserHasUploadedContentSingle(ctx context.Context) 
 	uniqueContent := helpers.GenerateUniqueContent("test status content")
 	
 	// Upload a single test file via portal (POST to IPFS SDK upload endpoint)
-	cid, err := helpers.IPFSPortalUpload(ctx, []byte(uniqueContent), "status-test.txt")
+	cid, _, err := helpers.IPFSPortalUpload(ctx, []byte(uniqueContent), "status-test.txt")
 	if err != nil {
 		return ctx, err
 	}
