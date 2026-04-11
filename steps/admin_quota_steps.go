@@ -76,6 +76,8 @@ func (s *AdminQuotaSteps) getDefaultTestLimits() admin.QuotaLimits {
 func (s *AdminQuotaSteps) updateExistingPlan(ctx context.Context, adminClient *admin.AdminClient, planID int64, name string) (*admin.QuotaPlan, error) {
 	limits := s.getDefaultTestLimits()
 	updatedPlan := admin.NewQuotaPlan(name, "Test plan created from E2E tests", limits)
+	// Preserve active state when reusing existing plans - SetDefaultPlan requires active plans
+	updatedPlan.IsActive = true
 
 	_, err := adminClient.Quota().UpdatePlan(ctx, fmt.Sprint(planID), updatedPlan)
 	if err != nil {
