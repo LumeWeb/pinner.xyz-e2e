@@ -207,6 +207,10 @@ func (s *AdminQuotaSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 
 	// Plan assignment steps
 	ctx.Step(`^the admin assigns the current plan to the authenticated user$`, s.theAdminAssignsTheCurrentPlanToTheAuthenticatedUser)
+	
+	// Plan setup consolidation steps
+	ctx.Step(`^the quota plan is set up$`, s.theQuotaPlanIsSetUp)
+
 	// Allowance update/delete steps
 	ctx.Step(`^the admin has created a quota allowance for user (\d+)$`, s.theAdminHasCreatedAQuotaAllowanceForUser)
 	ctx.Step(`^the admin updates the allowance with new limits$`, s.theAdminUpdatesTheAllowanceWithNewLimits)
@@ -556,6 +560,31 @@ func (s *AdminQuotaSteps) theAdminSetsThePlanAsDefault(ctx context.Context) (con
 
 	if err := adminClient.Quota().SetDefaultPlan(ctx, fmt.Sprint(s.planID)); err != nil {
 		fmt.Printf("Error: Failed to set plan as default: %v\n", err)
+		return ctx, fmt.Errorf("failed to set plan as default: %w", err)
+	}
+
+	return ctx, nil
+}
+
+// theQuotaPlanIsSetUp creates a default quota plan and sets it as default
+func (s *AdminQuotaSteps) theQuotaPlanIsSetUp(ctx context.Context) (context.Context, error) {
+	// Create the default test plan
+	plan, err := s.createQuotaPlan(ctx, "Default Test Plan")
+	if err != nil {
+		return ctx, err
+	}
+
+	s.planID = int64(plan.Id)
+	ctx = helpers.SetAdminCurrentPlan(ctx, plan)
+	ctx = helpers.AddQuotaPlanCleanup(ctx, int64(plan.Id))
+
+	// Set the plan as default
+	adminClient, err := helpers.RequireAdminClient(ctx)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to get admin client: %w", err)
+	}
+
+	if err := adminClient.Quota().SetDefaultPlan(ctx, fmt.Sprint(s.planID)); err != nil {
 		return ctx, fmt.Errorf("failed to set plan as default: %w", err)
 	}
 

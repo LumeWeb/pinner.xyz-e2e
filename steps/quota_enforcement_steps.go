@@ -36,7 +36,7 @@ func (s *QuotaEnforcementSteps) InitializeScenario(ctx *godog.ScenarioContext) e
 	
 	// Set limit based on actual uploaded file size
 	ctx.Step(`^the admin sets the download limit to the uploaded file size$`, s.theAdminSetsDownloadLimitToUploadedFileSize)
-	ctx.Step(`^the admin sets the upload limit to match the pending upload DAG size$`, s.theAdminSetsUploadLimitToMatchPendingUploadDAGSize)
+	ctx.Step(`^the admin sets the upload total limit to match the pending upload DAG size$`, s.theAdminSetsUploadLimitToMatchPendingUploadDAGSize)
 	ctx.Step(`^the admin sets the storage limit to match the pending upload DAG size$`, s.theAdminSetsStorageLimitToMatchPendingUploadDAGSize)
 
 	// Quota exhaustion and attempt steps

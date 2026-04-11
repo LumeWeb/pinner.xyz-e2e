@@ -45,11 +45,9 @@ Feature: Quota Limit Enforcement
   @quota-multiple-limits-exceeded
   Scenario: Operations denied when multiple quota types are exhausted
     Given the admin sets the upload total limit to 5 MB
-    And the admin sets the total download limit to 1 GB
     And the admin sets the storage limit to 1 GB
     And the user has a 5MB file with unique content
-    And the admin sets the upload limit to match the pending upload DAG size
-    And the user records their initial quota status
+    And the admin sets the upload total limit to match the pending upload DAG size
     When the user uploads the IPFS file
     And the operation completes
     When the user uploads another 5MB file to IPFS

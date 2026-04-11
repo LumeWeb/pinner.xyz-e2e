@@ -85,13 +85,6 @@ jobs:
         options: >-
           --name gofakes3
       
-      ipfs:
-        image: ipfs/kubo:latest
-        env:
-          IPFS_PROFILE: "test"
-        options: >-
-          --name portal-ipfs
-          --network host
       
       powerdns:
         image: powerdns/pdns-auth-51:latest
@@ -122,6 +115,9 @@ jobs:
       with:
         name: portal-build
         path: dist/
+    
+    - name: Start IPFS in host mode
+      uses: ./.github/actions/start-ipfs
     
     - name: Wait for Services
       run: |

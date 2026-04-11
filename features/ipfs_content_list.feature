@@ -6,8 +6,7 @@ Feature: IPFS Content List and Filtering
 
   Background:
     Given the admin is authenticated
-    And the admin creates a new quota plan named "Default Test Plan"
-    And the admin sets the plan as default
+    And the quota plan is set up
     And an existing registered user
     And the user is logged in
 
