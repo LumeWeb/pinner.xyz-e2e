@@ -29,7 +29,7 @@ load_portal_env quiet
 # Configuration
 STRIPE_MOCK_PORT="${STRIPE_MOCK_PORT:-80}"
 STRIPE_MOCK_BIN="stripe-mock-server"
-STRIPE_MOCK_GO_MODULE="go.lumeweb.com/stripe-mock-server/cmd/server"
+STRIPE_MOCK_GO_MODULE="go.lumeweb.com/stripe-mock-server/cmd/stripe-mock-server"
 STRIPE_MOCK_LOG=".stripe-mock.log"
 STRIPE_MOCK_PID=".stripe-mock.pid"
 
