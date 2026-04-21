@@ -15,9 +15,6 @@ set -euo pipefail
 # Get timeout from environment or use default
 DNS_WAIT_TIMEOUT="${DNS_WAIT_TIMEOUT:-30}"
 
-# Determine if we're in GitHub Actions or local environment
-IN_GHA="${GITHUB_ACTIONS:-false}"
-
 # PowerDNS API configuration
 DNS_API_URL="${POWERDNS_API_URL:-http://localhost:8081}"
 DNS_API_KEY="${POWERDNS_API_KEY:-secret-api-key-for-testing}"
@@ -26,6 +23,8 @@ DNS_API_KEY="${POWERDNS_API_KEY:-secret-api-key-for-testing}"
 DNS_API_BASE="${DNS_API_URL%/api/v1}"
 
 # Helper function to check PowerDNS API
+# Function is called via wait_with_timeout string
+# shellcheck disable=SC2317
 check_powerdns() {
     local api_url="$1"
     local api_key="$2"

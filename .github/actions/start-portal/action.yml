@@ -48,6 +48,14 @@ runs:
         chmod +x ./scripts/setup-kubo-bootstrap.sh
         ./scripts/setup-kubo-bootstrap.sh
         
+        # Start stripe-mock server (required for billing tests)
+        chmod +x ./scripts/start-stripe-mock.sh
+        ./scripts/start-stripe-mock.sh
+        
+        # Start atlos-mock server (required for billing tests)
+        chmod +x ./scripts/start-atlos-mock.sh
+        ./scripts/start-atlos-mock.sh
+        
         # Start portal in background with logging (PORTAL_PORT from .env or default to 8080)
         chmod +x ./scripts/start-portal.sh
         /bin/bash ./scripts/start-portal.sh ${{ inputs.log_file }}

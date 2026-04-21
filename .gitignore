@@ -9,6 +9,7 @@
 dist/
 /portal
 portal-mysql.yml
+portal-plugins.yaml
 
 # Python
 __pycache__/
@@ -42,9 +43,8 @@ Thumbs.db
 *.tmp
 *.temp
 
-# Portal PIDs
-.dns.pid
-.portal.pid
+# PID files
+*.pid
 
 # Renterd environment
 .env.renterd

@@ -14,7 +14,7 @@ func AddWebsiteDNSZoneToDevServer(ctx context.Context, domain string, dnslink st
 	if err != nil {
 		return err
 	}
-	
+
 	// Build base DNS records
 	records := []DNSDevRecord{
 		{
@@ -60,18 +60,18 @@ func AddWebsiteDNSZoneToDevServer(ctx context.Context, domain string, dnslink st
 		Domain:  domain,
 		Records: records,
 	}
-	
+
 	_, err = client.AddZone(ctx, zone)
 	if err != nil {
 		return fmt.Errorf("failed to add zone %s to dev server: %w", domain, err)
 	}
-	
+
 	// Verify the zone was actually added by listing zones
 	_, listErr := client.ListZones(ctx)
 	if listErr != nil {
 		// Log error but don't fail - zone may have been added successfully
 	}
-	
+
 	return nil
 }
 
@@ -108,12 +108,12 @@ func RemoveWebsiteDNSZoneFromDevServer(ctx context.Context, domain string) error
 	if err != nil {
 		return err
 	}
-	
+
 	err = client.DeleteZone(ctx, domain)
 	if err != nil {
 		return fmt.Errorf("failed to remove zone %s from dev server: %w", domain, err)
 	}
-	
+
 	return nil
 }
 
@@ -123,11 +123,11 @@ func CheckDNSDevServerHealth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	
+
 	_, err = client.Health(ctx)
 	if err != nil {
 		return fmt.Errorf("DNS dev server health check failed: %w", err)
 	}
-	
+
 	return nil
 }

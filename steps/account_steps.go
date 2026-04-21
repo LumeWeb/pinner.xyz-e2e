@@ -27,9 +27,6 @@ func (s *AccountSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	s.accountAPI = helpers.GetUnauthenticatedClient()
 
 	// Account management steps
-	ctx.Step(`^an existing registered user$`, s.anExistingRegisteredUser)
-	ctx.Step(`^the user is logged in$`, s.theUserIsLoggedIn)
-
 	// API key creation steps
 	ctx.Step(`^the user creates a new API key named "(.*)"$`, s.theUserCreatesANewAPIKeyNamed)
 	ctx.Step(`^the API key is created successfully$`, s.theAPIKeyIsCreatedSuccessfully)
@@ -82,14 +79,6 @@ func (s *AccountSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^two registered users$`, s.twoRegisteredUsers)
 }
 
-func (s *AccountSteps) anExistingRegisteredUser(ctx context.Context) (context.Context, error) {
-	return helpers.RegisterTestUser(ctx)
-}
-
-func (s *AccountSteps) theUserIsLoggedIn(ctx context.Context) (context.Context, error) {
-	return helpers.LoginTestUser(ctx)
-}
-
 func (s *AccountSteps) theUserCreatesANewAPIKeyNamed(ctx context.Context, name string) (context.Context, error) {
 	api, err := helpers.RequireAuthenticatedClient(ctx)
 	if err != nil {
@@ -126,7 +115,7 @@ func (s *AccountSteps) theUserListsTheirAPIKeys(ctx context.Context) (context.Co
 		return ctx, err
 	}
 
-	apiKeys, err := api.ListAPIKeys(ctx)
+	apiKeys, _, err := api.ListAPIKeys(ctx)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to list API keys: %w", err)
 	}
@@ -197,7 +186,7 @@ func (s *AccountSteps) theAPIKeyIsNoLongerInTheList(ctx context.Context) (contex
 		return ctx, err
 	}
 
-	apiKeys, err := api.ListAPIKeys(ctx)
+	apiKeys, _, err := api.ListAPIKeys(ctx)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to list API keys: %w", err)
 	}
@@ -392,7 +381,7 @@ func (s *AccountSteps) theUserListsAPIKeysFilteringByName(ctx context.Context, n
 	ctx = helpers.SetFilterName(ctx, name)
 
 	// Query all API keys and filter by name
-	allKeys, err := api.ListAPIKeys(ctx)
+	allKeys, _, err := api.ListAPIKeys(ctx)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to list API keys: %w", err)
 	}
@@ -574,7 +563,7 @@ func (s *AccountSteps) theAPIKeysListContainsBothKeys(ctx context.Context) error
 		return err
 	}
 
-	apiKeys, err := api.ListAPIKeys(ctx)
+	apiKeys, _, err := api.ListAPIKeys(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list API keys: %w", err)
 	}

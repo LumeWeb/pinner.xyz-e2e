@@ -29,9 +29,9 @@ func (e *PinnedNotFoundError) Error() string {
 
 // CIDTooShortError occurs when CID is too short to be valid
 type CIDTooShortError struct {
-	Context  string
-	CID      string
-	Length   int
+	Context   string
+	CID       string
+	Length    int
 	MinLength int
 }
 

@@ -31,8 +31,6 @@ func (s *AuthSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the user can login with the registered credentials$`, s.theUserCanLoginWithTheRegisteredCredentials)
 
 	// Login with email/password steps
-	ctx.Step(`^an existing registered user$`, s.anExistingRegisteredUser)
-	ctx.Step(`^the user is logged in$`, s.theUserIsLoggedIn)
 	ctx.Step(`^the user submits valid login credentials$`, s.theUserSubmitsValidLoginCredentials)
 	ctx.Step(`^the user receives a valid JWT token$`, s.theUserReceivesAValidJWTToken)
 	ctx.Step(`^the JWT token can be used for authenticated requests$`, s.theJWTTokenCanBeUsedForAuthenticatedRequests)
@@ -156,18 +154,6 @@ func (s *AuthSteps) theUserCanLoginWithTheRegisteredCredentials(ctx context.Cont
 }
 
 // Login with email/password step implementations
-
-// anExistingRegisteredUser creates and registers a new test user
-// Used by scenarios that need a fresh user account before testing other features
-func (s *AuthSteps) anExistingRegisteredUser(ctx context.Context) (context.Context, error) {
-	return helpers.RegisterTestUser(ctx)
-}
-
-// theUserIsLoggedIn authenticates the test user and stores credentials in context
-// Ensures subsequent steps have access to authenticated API clients
-func (s *AuthSteps) theUserIsLoggedIn(ctx context.Context) (context.Context, error) {
-	return helpers.LoginTestUser(ctx)
-}
 
 func (s *AuthSteps) theUserSubmitsValidLoginCredentials(ctx context.Context) (context.Context, error) {
 	return helpers.LoginTestUser(ctx)

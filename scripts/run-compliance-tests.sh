@@ -211,6 +211,8 @@ log_info "Running compliance tests from: $PACKAGE_PATH"
 # Run compliance tests with DNS preload script
 # Capture both stdout and stderr
 # The -s flag expects two arguments: endpoint and token (not combined)
+# API_KEY assignment is for env, expansion is for arg
+# shellcheck disable=SC2097,SC2098
 COMPLIANCE_OUTPUT=$(API_KEY="$API_KEY" node --require "$DNS_PRELOAD_PATH" "$PACKAGE_PATH" \
 	-s "$IPFS_ENDPOINT" "$API_KEY" \
 	${VERBOSE_FLAG:+$VERBOSE_FLAG} \

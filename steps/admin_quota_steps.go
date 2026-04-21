@@ -17,8 +17,6 @@ import (
 
 // AdminQuotaSteps holds the state for admin quota management step definitions
 type AdminQuotaSteps struct {
-	planID        int64
-	allowanceID    int64
 }
 
 // NewAdminQuotaSteps creates a new AdminQuotaSteps instance
@@ -26,34 +24,7 @@ func NewAdminQuotaSteps() *AdminQuotaSteps {
 	return &AdminQuotaSteps{}
 }
 
-// verifyPlanIDAvailable checks if planID is set and returns error if not
-func (s *AdminQuotaSteps) verifyPlanIDAvailable() error {
-	if s.planID == 0 {
-		return fmt.Errorf("no plan ID available")
-	}
-	return nil
-}
 
-// verifyAllowanceIDAvailable checks if allowanceID is set and returns error if not
-func (s *AdminQuotaSteps) verifyAllowanceIDAvailable() error {
-	if s.allowanceID == 0 {
-		return fmt.Errorf("no allowance ID available")
-	}
-	return nil
-}
-
-// verifyResourceExists verifies a resource was retrieved from context
-func verifyResourceExists[T any](value T, ok bool, errorPrefix string) error {
-	if !ok {
-		return fmt.Errorf("%s was not retrieved", errorPrefix)
-	}
-
-	// For pointer types, check for nil
-	if interface{}(value) == nil {
-		return fmt.Errorf("%s is nil", errorPrefix)
-	}
-	return nil
-}
 
 // getDefaultTestLimits creates standard test quota limits
 func (s *AdminQuotaSteps) getDefaultTestLimits() admin.QuotaLimits {
@@ -263,7 +234,6 @@ func (s *AdminQuotaSteps) theAdminCreatesANewQuotaPlanNamed(ctx context.Context,
 		return ctx, err
 	}
 
-	s.planID = int64(plan.Id)
 	ctx = helpers.SetAdminCurrentPlan(ctx, plan)
 	ctx = helpers.AddQuotaPlanCleanup(ctx, int64(plan.Id))
 	return ctx, nil
@@ -272,7 +242,7 @@ func (s *AdminQuotaSteps) theAdminCreatesANewQuotaPlanNamed(ctx context.Context,
 // theQuotaPlanIsCreatedWithTheSpecifiedLimits verifies plan creation
 func (s *AdminQuotaSteps) theQuotaPlanIsCreatedWithTheSpecifiedLimits(ctx context.Context) (context.Context, error) {
 	plan, ok := helpers.GetAdminCurrentPlan(ctx)
-	if err := verifyResourceExists(plan, ok, "quota plan"); err != nil {
+	if err := helpers.VerifyResourceExists(plan, ok, "quota plan"); err != nil {
 		return ctx, err
 	}
 
@@ -290,11 +260,12 @@ func (s *AdminQuotaSteps) theAdminRetrievesTheQuotaPlan(ctx context.Context) (co
 		return ctx, err
 	}
 
-	if err := s.verifyPlanIDAvailable(); err != nil {
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
 		return ctx, err
 	}
 
-	plan, err := adminClient.Quota().GetPlan(ctx, fmt.Sprint(s.planID))
+	plan, err = adminClient.Quota().GetPlan(ctx, fmt.Sprint(plan.Id))
 	if err != nil {
 		return ctx, fmt.Errorf("failed to get quota plan: %w", err)
 	}
@@ -306,7 +277,7 @@ func (s *AdminQuotaSteps) theAdminRetrievesTheQuotaPlan(ctx context.Context) (co
 // theQuotaPlanInformationIsReturned verifies plan retrieval
 func (s *AdminQuotaSteps) theQuotaPlanInformationIsReturned(ctx context.Context) (context.Context, error) {
 	plan, ok := helpers.GetAdminCurrentPlan(ctx)
-	if err := verifyResourceExists(plan, ok, "quota plan"); err != nil {
+	if err := helpers.VerifyResourceExists(plan, ok, "quota plan"); err != nil {
 		return ctx, err
 	}
 
@@ -336,7 +307,7 @@ func (s *AdminQuotaSteps) theAdminListsAllQuotaAllowances(ctx context.Context) (
 // theQuotaAllowancesAreReturnedSuccessfully verifies allowances were retrieved
 func (s *AdminQuotaSteps) theQuotaAllowancesAreReturnedSuccessfully(ctx context.Context) (context.Context, error) {
 	allowances, ok := helpers.GetAdminQuotaAllowances(ctx)
-	if err := verifyResourceExists(allowances, ok, "quota allowances"); err != nil {
+	if err := helpers.VerifyResourceExists(allowances, ok, "quota allowances"); err != nil {
 		return ctx, err
 	}
 	return ctx, nil
@@ -360,7 +331,6 @@ func (s *AdminQuotaSteps) theAdminCreatesAQuotaAllowanceForUser(ctx context.Cont
 		return ctx, fmt.Errorf("failed to create quota allowance: %w", err)
 	}
 
-	s.allowanceID = int64(allowance.Id)
 	ctx = helpers.SetAdminCurrentAllowance(ctx, allowance)
 	ctx = helpers.AddQuotaAllowanceCleanup(ctx, int64(allowance.Id))
 	return ctx, nil
@@ -369,7 +339,7 @@ func (s *AdminQuotaSteps) theAdminCreatesAQuotaAllowanceForUser(ctx context.Cont
 // theQuotaAllowanceIsCreatedSuccessfully verifies allowance creation
 func (s *AdminQuotaSteps) theQuotaAllowanceIsCreatedSuccessfully(ctx context.Context) (context.Context, error) {
 	allowance, ok := helpers.GetAdminCurrentAllowance(ctx)
-	if err := verifyResourceExists(allowance, ok, "quota allowance"); err != nil {
+	if err := helpers.VerifyResourceExists(allowance, ok, "quota allowance"); err != nil {
 		return ctx, err
 	}
 
@@ -399,7 +369,7 @@ func (s *AdminQuotaSteps) theAdminRetrievesSystemWideQuotaStatistics(ctx context
 // theSystemStatisticsIncludeUploadDownloadAndStorageUsage verifies stats
 func (s *AdminQuotaSteps) theSystemStatisticsIncludeUploadDownloadAndStorageUsage(ctx context.Context) (context.Context, error) {
 	stats, ok := helpers.GetAdminSystemStats(ctx)
-	if err := verifyResourceExists(stats, ok, "system statistics"); err != nil {
+	if err := helpers.VerifyResourceExists(stats, ok, "system statistics"); err != nil {
 		return ctx, err
 	}
 
@@ -413,7 +383,6 @@ func (s *AdminQuotaSteps) theAdminHasCreatedAQuotaPlanNamed(ctx context.Context,
 		return ctx, err
 	}
 
-	s.planID = int64(plan.Id)
 	ctx = helpers.SetAdminCurrentPlan(ctx, plan)
 	ctx = helpers.AddQuotaPlanCleanup(ctx, int64(plan.Id))
 	return ctx, nil
@@ -426,17 +395,18 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheQuotaPlanWithNewLimits(ctx context.C
 		return ctx, err
 	}
 
-	if err := s.verifyPlanIDAvailable(); err != nil {
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
 		return ctx, err
 	}
 
 	// Get the existing plan first to preserve its name and description
-	existingPlan, err := adminClient.Quota().GetPlan(ctx, fmt.Sprint(s.planID))
+	existingPlan, err := adminClient.Quota().GetPlan(ctx, fmt.Sprint(plan.Id))
 	if err != nil {
 		return ctx, fmt.Errorf("failed to get existing plan: %w", err)
 	}
 
-	if err := verifyResourceExists(existingPlan, existingPlan != nil, "existing plan"); err != nil {
+	if err := helpers.VerifyResourceExists(existingPlan, existingPlan != nil, "existing plan"); err != nil {
 		return ctx, err
 	}
 
@@ -462,7 +432,7 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheQuotaPlanWithNewLimits(ctx context.C
 		},
 	)
 	
-	_, err = adminClient.Quota().UpdatePlan(ctx, fmt.Sprint(s.planID), updatedPlan)
+	_, err = adminClient.Quota().UpdatePlan(ctx, fmt.Sprint(plan.Id), updatedPlan)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to update quota plan: %w", err)
 	}
@@ -472,7 +442,8 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheQuotaPlanWithNewLimits(ctx context.C
 
 // theQuotaPlanIsUpdatedSuccessfully verifies update by retrieving the plan
 func (s *AdminQuotaSteps) theQuotaPlanIsUpdatedSuccessfully(ctx context.Context) (context.Context, error) {
-	if s.planID == 0 {
+	plan, ok := helpers.GetAdminCurrentPlan(ctx)
+	if !ok {
 		return ctx, nil
 	}
 
@@ -482,7 +453,7 @@ func (s *AdminQuotaSteps) theQuotaPlanIsUpdatedSuccessfully(ctx context.Context)
 	}
 
 	// Verify plan still exists after update
-	_, err = adminClient.Quota().GetPlan(ctx, fmt.Sprint(s.planID))
+	_, err = adminClient.Quota().GetPlan(ctx, fmt.Sprint(plan.Id))
 	if err != nil {
 		return ctx, fmt.Errorf("plan not found after update: %w", err)
 	}
@@ -500,7 +471,12 @@ func (s *AdminQuotaSteps) theUpdatedLimitsAreReflected(ctx context.Context) (con
 		return ctx, err
 	}
 
-	plan, err := adminClient.Quota().GetPlan(ctx, fmt.Sprint(s.planID))
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
+		return ctx, err
+	}
+
+	plan, err = adminClient.Quota().GetPlan(ctx, fmt.Sprint(plan.Id))
 	if err != nil {
 		return ctx, fmt.Errorf("failed to get updated plan: %w", err)
 	}
@@ -520,11 +496,12 @@ func (s *AdminQuotaSteps) theAdminDeletesTheQuotaPlan(ctx context.Context) (cont
 		return ctx, err
 	}
 
-	if err := s.verifyPlanIDAvailable(); err != nil {
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
 		return ctx, err
 	}
 
-	if err := adminClient.Quota().DeletePlan(ctx, fmt.Sprint(s.planID)); err != nil {
+	if err := adminClient.Quota().DeletePlan(ctx, fmt.Sprint(plan.Id)); err != nil {
 		return ctx, fmt.Errorf("failed to delete quota plan: %w", err)
 	}
 
@@ -538,8 +515,13 @@ func (s *AdminQuotaSteps) theQuotaPlanIsDeletedSuccessfully(ctx context.Context)
 		return ctx, err
 	}
 
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
+		return ctx, err
+	}
+
 	// Verify plan no longer exists
-	_, err = adminClient.Quota().GetPlan(ctx, fmt.Sprint(s.planID))
+	_, err = adminClient.Quota().GetPlan(ctx, fmt.Sprint(plan.Id))
 	if err == nil {
 		return ctx, fmt.Errorf("plan still exists after deletion")
 	}
@@ -555,12 +537,13 @@ func (s *AdminQuotaSteps) theAdminSetsThePlanAsDefault(ctx context.Context) (con
 		return ctx, err
 	}
 
-	if err := s.verifyPlanIDAvailable(); err != nil {
-		fmt.Printf("Error: Plan ID not available: %v\n", err)
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
+		fmt.Printf("Error: Plan not available in context: %v\n", err)
 		return ctx, err
 	}
 
-	if err := adminClient.Quota().SetDefaultPlan(ctx, fmt.Sprint(s.planID)); err != nil {
+	if err := adminClient.Quota().SetDefaultPlan(ctx, fmt.Sprint(plan.Id)); err != nil {
 		fmt.Printf("Error: Failed to set plan as default: %v\n", err)
 		return ctx, fmt.Errorf("failed to set plan as default: %w", err)
 	}
@@ -576,7 +559,6 @@ func (s *AdminQuotaSteps) theQuotaPlanIsSetUp(ctx context.Context) (context.Cont
 		return ctx, err
 	}
 
-	s.planID = int64(plan.Id)
 	ctx = helpers.SetAdminCurrentPlan(ctx, plan)
 	ctx = helpers.AddQuotaPlanCleanup(ctx, int64(plan.Id))
 
@@ -586,7 +568,7 @@ func (s *AdminQuotaSteps) theQuotaPlanIsSetUp(ctx context.Context) (context.Cont
 		return ctx, fmt.Errorf("failed to get admin client: %w", err)
 	}
 
-	if err := adminClient.Quota().SetDefaultPlan(ctx, fmt.Sprint(s.planID)); err != nil {
+	if err := adminClient.Quota().SetDefaultPlan(ctx, fmt.Sprint(plan.Id)); err != nil {
 		return ctx, fmt.Errorf("failed to set plan as default: %w", err)
 	}
 
@@ -600,7 +582,8 @@ func (s *AdminQuotaSteps) theAdminAssignsTheCurrentPlanToTheAuthenticatedUser(ct
 		return ctx, fmt.Errorf("failed to get admin client: %w", err)
 	}
 
-	if err := s.verifyPlanIDAvailable(); err != nil {
+	plan, err := helpers.RequireAdminCurrentPlan(ctx)
+	if err != nil {
 		return ctx, fmt.Errorf("no plan ID available: %w", err)
 	}
 
@@ -616,11 +599,11 @@ func (s *AdminQuotaSteps) theAdminAssignsTheCurrentPlanToTheAuthenticatedUser(ct
 	}
 
 	userID := int(accountInfo.Id)
-	planID := int(s.planID)
+	planID := int(plan.Id)
 
 	// Assign the plan to the user using UpdateUserConfig
 	config := &admin.UserQuotaConfigUpdate{
-		QuotaPlanID: &planID,
+		QuotaPlanId: &planID,
 	}
 
 	_, err = adminClient.Quota().UpdateUserConfig(ctx, userID, config)
@@ -642,7 +625,8 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheAllowanceWithNewLimits(ctx context.C
 		return ctx, err
 	}
 
-	if err := s.verifyAllowanceIDAvailable(); err != nil {
+	allowance, err := helpers.RequireAdminCurrentAllowance(ctx)
+	if err != nil {
 		return ctx, err
 	}
 
@@ -654,7 +638,7 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheAllowanceWithNewLimits(ctx context.C
 		return ctx, fmt.Errorf("failed to get existing allowance: %w", err)
 	}
 
-	if err := verifyResourceExists(existingAllowance, existingAllowance != nil, "existing allowance"); err != nil {
+	if err := helpers.VerifyResourceExists(existingAllowance, existingAllowance != nil, "existing allowance"); err != nil {
 		return ctx, err
 	}
 
@@ -663,7 +647,7 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheAllowanceWithNewLimits(ctx context.C
 	allowanceDownload, _ := units.FromHumanSize("1GB")
 	allowanceStorage, _ := units.FromHumanSize("20MB")
 	
-	_, err = adminClient.Quota().UpdateAllowance(ctx, fmt.Sprint(s.allowanceID), existingAllowance.UserId, "BONUS", "STORAGE",
+	_, err = adminClient.Quota().UpdateAllowance(ctx, fmt.Sprint(allowance.Id), existingAllowance.UserId, "BONUS", "STORAGE",
 		int(allowanceUpload),
 		int(allowanceDownload),
 		int(allowanceStorage),
@@ -678,7 +662,8 @@ func (s *AdminQuotaSteps) theAdminUpdatesTheAllowanceWithNewLimits(ctx context.C
 
 // theAllowanceIsUpdatedSuccessfully verifies update by retrieving the allowance
 func (s *AdminQuotaSteps) theAllowanceIsUpdatedSuccessfully(ctx context.Context) (context.Context, error) {
-	if s.allowanceID == 0 {
+	allowance, ok := helpers.GetAdminCurrentAllowance(ctx)
+	if !ok {
 		return ctx, nil
 	}
 
@@ -692,6 +677,9 @@ func (s *AdminQuotaSteps) theAllowanceIsUpdatedSuccessfully(ctx context.Context)
 		return ctx, fmt.Errorf("allowance has invalid ID after update")
 	}
 
+	// Update the stored allowance with fresh data
+	ctx = helpers.SetAdminCurrentAllowance(ctx, allowance)
+
 	return ctx, nil
 }
 
@@ -703,11 +691,12 @@ func (s *AdminQuotaSteps) theAdminDeletesTheAllowance(ctx context.Context) (cont
 		return ctx, err
 	}
 
-	if err := s.verifyAllowanceIDAvailable(); err != nil {
+	allowance, err := helpers.RequireAdminCurrentAllowance(ctx)
+	if err != nil {
 		return ctx, err
 	}
 
-	if err := adminClient.Quota().DeleteAllowance(ctx, fmt.Sprint(s.allowanceID)); err != nil {
+	if err := adminClient.Quota().DeleteAllowance(ctx, fmt.Sprint(allowance.Id)); err != nil {
 		return ctx, fmt.Errorf("failed to delete quota allowance: %w", err)
 	}
 
@@ -721,10 +710,15 @@ func (s *AdminQuotaSteps) theAllowanceIsDeletedSuccessfully(ctx context.Context)
 		return ctx, err
 	}
 
+	allowance, err := helpers.RequireAdminCurrentAllowance(ctx)
+	if err != nil {
+		return ctx, err
+	}
+
 	// Verify allowance is inactive (soft delete sets is_active=false)
 	allowances, _, _ := adminClient.Quota().ListAllowances(ctx)
 	for _, a := range allowances {
-		if int64(a.Id) == s.allowanceID {
+		if a.Id == allowance.Id {
 			if a.IsActive {
 				return ctx, fmt.Errorf("allowance is still active after deletion")
 			}
@@ -771,7 +765,7 @@ func (s *AdminQuotaSteps) theReconciliationCompletesSuccessfully(ctx context.Con
 // theUsersProcessedCountIsRecorded verifies count recorded
 func (s *AdminQuotaSteps) theUsersProcessedCountIsRecorded(ctx context.Context) (context.Context, error) {
 	processed, ok := helpers.GetProcessedUsers(ctx)
-	if err := verifyResourceExists(processed, ok, "processed users count"); err != nil {
+	if err := helpers.VerifyResourceExists(processed, ok, "processed users count"); err != nil {
 		return ctx, err
 	}
 	return ctx, nil

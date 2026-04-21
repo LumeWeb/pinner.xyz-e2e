@@ -25,7 +25,7 @@ func CreateDNSZone(ctx context.Context, domain string, nameservers []string) (co
 	// Track zone for cleanup and context
 	// Use database integer ID for API calls
 	zoneDBID := strconv.Itoa(zone.Id)
-	
+
 	ctx = AddDNSZoneCleanup(ctx, zoneDBID)
 	ctx = SetDNSZoneID(ctx, zoneDBID)
 	ctx = SetDNSZoneDomain(ctx, zone.Domain)

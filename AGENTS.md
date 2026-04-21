@@ -408,6 +408,81 @@ The E2E test suite includes comprehensive IPFS helper libraries:
 - `scripts/setup-compliance.sh` - Setup compliance test environment
 - `scripts/validate-compliance-setup.sh` - Validate compliance prerequisites
 
+### Multi-Gateway Subscription Testing
+
+The subscription tests support multiple payment gateways through an abstraction layer. This allows testing subscription lifecycle behaviors across different payment providers (Stripe, PayPal, etc.) with gateway-specific quirks handled by mock implementations.
+
+**Architecture:**
+
+```
+helpers/gateway_context.go    - Gateway context management (Get/Set ActiveGateway)
+helpers/gateway_mock.go       - GatewayMock interface + StripeMock implementation
+helpers/stripe_client.go      - Stripe SDK wrappers (all Stripe-prefixed functions)
+
+steps/gateway_steps.go        - Gateway configuration steps ("the payment mock is reset")
+steps/subscription_common_steps.go  - Gateway-agnostic subscription steps
+steps/user_subscription_steps.go    - Generic user subscription flow (uses gateway-agnostic helpers)
+steps/stripe_subscription_steps.go  - Stripe-specific subscription steps
+steps/stripe_manual_control_steps.go - Stripe-specific manual control (pause/resume/renew/expire)
+
+features/subscription_lifecycle.feature       - Gateway-agnostic scenarios
+features/stripe_subscription_lifecycle.feature - Stripe-specific scenarios
+features/admin_subscription_management.feature - Admin operations (gateway-agnostic via portal API)
+```
+
+**Key Design Principles:**
+
+1. **Gateway-agnostic steps** use `CompleteGatewayCheckout()`, `SimulateGatewayPayment()` via the active gateway mock
+2. **Gateway-specific steps** explicitly reference the gateway (`CompleteStripeCheckoutSession`, `the Stripe checkout session completes`)
+3. **Registration order matters**: Gateway steps registered first initialize context, then generic steps, then gateway-specific
+4. **Default gateway** is set in `godog_test.go` Before hook via `SetActiveGateway(ctx, GatewayDefault)`
+
+**Adding a New Gateway (e.g., PayPal):**
+
+1. **Add constant** in `helpers/gateway_context.go`:
+   ```go
+   const GatewayPaypal PaymentGateway = "paypal"
+   ```
+
+2. **Create mock implementation** `helpers/paypal_mock.go`:
+   ```go
+   type PaypalMock struct{}
+   
+   func (m *PaypalMock) Reset(ctx context.Context) error { ... }
+   func (m *PaypalMock) CompleteCheckout(ctx context.Context, sessionID string) (string, error) { ... }
+   // ... implement all GatewayMock interface methods
+   ```
+
+3. **Register mock** in `helpers/gateway_mock.go` `GetGatewayMock()`:
+   ```go
+   case GatewayPaypal:
+       return NewPaypalMock(), nil
+   ```
+
+4. **Create PayPal-specific step file** `steps/paypal_subscription_steps.go`:
+   - Implement PayPal-specific steps (e.g., `the Paypal checkout completes`)
+   - Use `helpers.Paypal*` functions
+
+5. **Create feature file** `features/paypal_subscription_lifecycle.feature`:
+   - Background: `Given the paypal gateway is active`
+   - Define PayPal-specific scenarios
+
+6. **Register steps** in `godog_test.go`:
+   ```go
+   paypalSubscriptionSteps := steps.NewPaypalSubscriptionSteps()
+   paypalSubscriptionSteps.InitializeScenario(ctx)
+   ```
+
+7. **Use generic scenarios automatically** 
+   - Scenarios in `subscription_lifecycle.feature` work with any active gateway
+   - Background step `the default gateway is set` (or explicit `the paypal gateway is active`)
+
+**Naming Conventions:**
+
+- Gateway-agnostic helpers: `GetGatewaySubscriptionID()`, `CompleteGatewayCheckout()`
+- Stripe-specific helpers: `GetStripeCheckoutSession()`, `CompleteStripeCheckoutSession()`
+- Step patterns: `the checkout session completes` (generic) vs `the Stripe checkout session completes` (specific)
+
 ### Environment Variable Generation
 
 The `scripts/yaml_to_env.py` script converts nested YAML paths to environment variables using `PORTAL__` prefix and double-underscore separators:

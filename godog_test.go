@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"context"
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
 	"pinner.xyz-e2e/helpers"
@@ -45,6 +46,14 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	// Register common hooks before initializing any step definitions
 	// This ensures cleanup tracking for all scenarios
 	helpers.RegisterCommonHooks(ctx)
+
+	// Initialize common steps BEFORE service-specific steps
+	// Godog uses first-registered step handler, so common steps must initialize first
+	commonAuthSteps := steps.NewCommonAuthSteps()
+	commonAuthSteps.InitializeScenario(ctx)
+
+	commonPasswordSteps := steps.NewCommonPasswordSteps()
+	commonPasswordSteps.InitializeScenario(ctx)
 
 	// Initialize auth steps
 	authSteps := steps.NewAuthSteps()
@@ -139,7 +148,72 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	adminQuotaSteps := steps.NewAdminQuotaSteps()
 	adminQuotaSteps.InitializeScenario(ctx)
 
+	// Initialize admin billing management steps
+	adminBillingSteps := steps.NewAdminBillingSteps()
+	adminBillingSteps.InitializeScenario(ctx)
+
+	// Initialize admin subscription management steps (gateway-agnostic)
+	adminSubscriptionSteps := steps.NewAdminSubscriptionSteps()
+	adminSubscriptionSteps.InitializeScenario(ctx)
+
+	// Initialize gateway configuration steps (MUST be first for subscription tests)
+	gatewaySteps := steps.NewGatewaySteps()
+	gatewaySteps.InitializeScenario(ctx)
+
+	// Initialize generic subscription common steps (gateway-agnostic)
+	subscriptionCommonSteps := steps.NewSubscriptionCommonSteps()
+	subscriptionCommonSteps.InitializeScenario(ctx)
+
+	// Initialize user subscription steps (gateway-agnostic)
+	userSubscriptionSteps := steps.NewUserSubscriptionSteps()
+	userSubscriptionSteps.InitializeScenario(ctx)
+
+	// Initialize Stripe-specific subscription steps
+	stripeSubscriptionSteps := steps.NewStripeSubscriptionSteps()
+	stripeSubscriptionSteps.InitializeScenario(ctx)
+
+	// Initialize Stripe manual control steps
+	stripeManualControlSteps := steps.NewStripeManualControlSteps()
+	stripeManualControlSteps.InitializeScenario(ctx)
+
+	// Initialize Atlos-specific subscription steps
+	atlosSubscriptionSteps := steps.NewAtlosSubscriptionSteps()
+	atlosSubscriptionSteps.InitializeScenario(ctx)
+
+	// Initialize Atlos manual control steps
+	atlosManualControlSteps := steps.NewAtlosManualControlSteps()
+	atlosManualControlSteps.InitializeScenario(ctx)
+
 	// Initialize quota enforcement steps
 	quotaEnforcementSteps := steps.NewQuotaEnforcementSteps()
 	quotaEnforcementSteps.InitializeScenario(ctx)
+
+	// Register scenario-level hooks
+	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
+		// Set default gateway at the start of each scenario
+		ctx = helpers.SetActiveGateway(ctx, helpers.GatewayDefault)
+
+		// Reset stripe-mock before each scenario to ensure clean state
+		// This clears all data: customers, subscriptions, products, prices, webhooks
+		if err := helpers.ResetStripeMock(ctx); err != nil {
+			helpers.NewLogger(sc.Name).Error(ctx, "Failed to reset stripe-mock: %v", err)
+		}
+		return ctx, nil
+	})
+
+	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+		// Reset payment gateway mocks after each scenario
+		if helpers.GatewayIsStripe(ctx) {
+			if err := helpers.ResetStripeMock(ctx); err != nil {
+				helpers.NewLogger(sc.Name).Error(ctx, "Failed to reset stripe-mock after scenario: %v", err)
+			}
+		}
+		// Cleanup billing infrastructure if created
+		if _, _, ok := helpers.GetBillingInfrastructure(ctx); ok {
+			if err := helpers.CleanupBillingInfrastructure(ctx); err != nil {
+				helpers.NewLogger(sc.Name).Error(ctx, "Failed to cleanup billing infrastructure: %v", err)
+			}
+		}
+		return ctx, nil
+	})
 }

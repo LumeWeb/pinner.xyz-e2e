@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	account "go.lumeweb.com/portal-sdk"
-	admin "go.lumeweb.com/portal-sdk/admin"
 	goCid "github.com/ipfs/go-cid"
 	"go.lumeweb.com/ipfs-content/encoding"
+	account "go.lumeweb.com/portal-sdk"
+	admin "go.lumeweb.com/portal-sdk/admin"
 
 	"github.com/go-faker/faker/v4"
 	"github.com/pquerna/otp/totp"
@@ -29,32 +29,32 @@ type IPFSContent struct {
 type contextKey string
 
 const (
-	JWTTokenKey       contextKey = "jwt_token"
-	APIKeyKey         contextKey = "api_key"
-	APIKeyUUIDKey     contextKey = "api_key_uuid"
-	TestUserKey       contextKey = "test_user"
-	OperationIDKey    contextKey = "operation_id"
-	OTPSecretKey      contextKey = "otp_secret"
-	APIKeysCleanupKey contextKey = "api_keys_cleanup"
-	APIKeyUUIDsCleanupKey contextKey = "api_key_uuids_cleanup"
-	TestUsersCleanupKey contextKey = "test_users_cleanup"
-	APIKeysListKey contextKey = "api_keys_list"
-	UploadLimitKey      contextKey = "upload_limit"
-	OperationsCleanupKey      contextKey = "operations_cleanup"
-	PasswordResetTokenKey     contextKey = "password_reset_token"
-	VerificationTokenKey      contextKey = "verification_token"
-	AuthenticatedClientKey    contextKey = "authenticated_client"
-	RegistrationErrorKey      contextKey = "registration_error"
-	PageSizeKey         contextKey = "page_size"
-	FilterNameKey       contextKey = "filter_name"
-	User1Key            contextKey = "user1"
-	User2Key            contextKey = "user2"
-	APIKey1TokenKey     contextKey = "api_key1_token"
-	APIKey2TokenKey     contextKey = "api_key2_token"
-	FirstApiKeyNameKey  contextKey = "first_api_key_name"
-	FirstApiKeyTokenKey contextKey = "first_api_key_token"
-	SecondApiKeyTokenKey contextKey = "second_api_key_token"
-	RegistrationEmailKey contextKey = "registration_email"
+	JWTTokenKey             contextKey = "jwt_token"
+	APIKeyKey               contextKey = "api_key"
+	APIKeyUUIDKey           contextKey = "api_key_uuid"
+	TestUserKey             contextKey = "test_user"
+	OperationIDKey          contextKey = "operation_id"
+	OTPSecretKey            contextKey = "otp_secret"
+	APIKeysCleanupKey       contextKey = "api_keys_cleanup"
+	APIKeyUUIDsCleanupKey   contextKey = "api_key_uuids_cleanup"
+	TestUsersCleanupKey     contextKey = "test_users_cleanup"
+	APIKeysListKey          contextKey = "api_keys_list"
+	UploadLimitKey          contextKey = "upload_limit"
+	OperationsCleanupKey    contextKey = "operations_cleanup"
+	PasswordResetTokenKey   contextKey = "password_reset_token"
+	VerificationTokenKey    contextKey = "verification_token"
+	AuthenticatedClientKey  contextKey = "authenticated_client"
+	RegistrationErrorKey    contextKey = "registration_error"
+	PageSizeKey             contextKey = "page_size"
+	FilterNameKey           contextKey = "filter_name"
+	User1Key                contextKey = "user1"
+	User2Key                contextKey = "user2"
+	APIKey1TokenKey         contextKey = "api_key1_token"
+	APIKey2TokenKey         contextKey = "api_key2_token"
+	FirstApiKeyNameKey      contextKey = "first_api_key_name"
+	FirstApiKeyTokenKey     contextKey = "first_api_key_token"
+	SecondApiKeyTokenKey    contextKey = "second_api_key_token"
+	RegistrationEmailKey    contextKey = "registration_email"
 	RegistrationPasswordKey contextKey = "registration_password"
 
 	// IPFS context keys for IPFS state management
@@ -78,55 +78,60 @@ const (
 	DirectoryEntriesKey     contextKey = "directory_entries"
 
 	// IPNS context keys for IPNS state management
-	IPNSKeyIDKey            contextKey = "ipns_key_id"
-	IPNSKeyNameKey          contextKey = "ipns_key_name"
-	IPNSPeerIDKey           contextKey = "ipns_peer_id"
-	IPNSIPNSNameKey         contextKey = "ipns_ipns_name"
-	IPNSPublishCIDKey       contextKey = "ipns_publish_cid"
-	IPNSResolvedCIDKey      contextKey = "ipns_resolved_cid"
-	IPNSKeysCleanupKey      contextKey = "ipns_keys_cleanup"
+	IPNSKeyIDKey       contextKey = "ipns_key_id"
+	IPNSKeyNameKey     contextKey = "ipns_key_name"
+	IPNSPeerIDKey      contextKey = "ipns_peer_id"
+	IPNSIPNSNameKey    contextKey = "ipns_ipns_name"
+	IPNSPublishCIDKey  contextKey = "ipns_publish_cid"
+	IPNSResolvedCIDKey contextKey = "ipns_resolved_cid"
+	IPNSKeysCleanupKey contextKey = "ipns_keys_cleanup"
 
 	// DNS context keys for DNS state management
-	DNSZoneIDKey            contextKey = "dns_zone_id"
-	DNSZoneDomainKey        contextKey = "dns_zone_domain"
-	DNSZoneCleanupKey       contextKey = "dns_zones_cleanup"
-	QuotaPlanIDsCleanupKey  contextKey = "quota_plan_ids_cleanup"
+	DNSZoneIDKey                contextKey = "dns_zone_id"
+	DNSZoneDomainKey            contextKey = "dns_zone_domain"
+	DNSZoneCleanupKey           contextKey = "dns_zones_cleanup"
+	QuotaPlanIDsCleanupKey      contextKey = "quota_plan_ids_cleanup"
 	QuotaAllowanceIDsCleanupKey contextKey = "quota_allowance_ids_cleanup"
-	DNSRecordNameKey        contextKey = "dns_record_name"
-	DNSRecordFQDNKey        contextKey = "dns_record_fqdn"
-	DNSRecordTypeKey        contextKey = "dns_record_type"
-	DNSRecordValueKey       contextKey = "dns_record_value"
-	DNSRecordListKey        contextKey = "dns_record_list"
-	DNSZoneListKey          contextKey = "dns_zone_list"
+	DNSRecordNameKey            contextKey = "dns_record_name"
+	DNSRecordFQDNKey            contextKey = "dns_record_fqdn"
+	DNSRecordTypeKey            contextKey = "dns_record_type"
+	DNSRecordValueKey           contextKey = "dns_record_value"
+	DNSRecordListKey            contextKey = "dns_record_list"
+	DNSZoneListKey              contextKey = "dns_zone_list"
 
 	// Website context keys for website state management
-	WebsiteIDKey            contextKey = "website_id"
-	WebsiteDomainKey        contextKey = "website_domain"
-	WebsiteTargetHashKey    contextKey = "website_target_hash"
-	WebsiteTargetTypeKey    contextKey = "website_target_type"
-	WebsiteDnsHostingKey    contextKey = "website_dns_hosting_enabled"
-	WebsiteDnsZoneIDKey     contextKey = "website_dns_zone_id"
-	WebsiteSslStatusKey     contextKey = "website_ssl_status"
-	WebsiteStatusKey        contextKey = "website_status"
-	WebsiteValidationTokenKey contextKey = "website_validation_token"
-	WebsitesCleanupKey      contextKey = "websites_cleanup"
-	WebsiteListKey          contextKey = "website_list"
-	WebsiteIntendedDomainKey  contextKey = "website_intended_domain"    // Intended domain from feature file (before randomization)
+	WebsiteIDKey                 contextKey = "website_id"
+	WebsiteDomainKey             contextKey = "website_domain"
+	WebsiteTargetHashKey         contextKey = "website_target_hash"
+	WebsiteTargetTypeKey         contextKey = "website_target_type"
+	WebsiteDnsHostingKey         contextKey = "website_dns_hosting_enabled"
+	WebsiteDnsZoneIDKey          contextKey = "website_dns_zone_id"
+	WebsiteSslStatusKey          contextKey = "website_ssl_status"
+	WebsiteStatusKey             contextKey = "website_status"
+	WebsiteValidationTokenKey    contextKey = "website_validation_token"
+	WebsitesCleanupKey           contextKey = "websites_cleanup"
+	WebsiteListKey               contextKey = "website_list"
+	WebsiteIntendedDomainKey     contextKey = "website_intended_domain"      // Intended domain from feature file (before randomization)
 	WebsiteIntendedTargetHashKey contextKey = "website_intended_target_hash" // Intended target hash (uploaded CID before IPNS conversion)
-	UploadResultKey          contextKey = "upload_result"
-	UploadOperationCompletedKey contextKey = "upload_operation_completed"
+	UploadResultKey              contextKey = "upload_result"
+	UploadOperationCompletedKey  contextKey = "upload_operation_completed"
 
 	// Admin quota context keys for admin quota management
-	ProcessedUsersKey        contextKey = "processed_users"
-	DeletedRecordsKey        contextKey = "deleted_records"
+	ProcessedUsersKey contextKey = "processed_users"
+	DeletedRecordsKey contextKey = "deleted_records"
 
 	// Quota status context keys for user quota management
-	InitialQuotaStatusKey    contextKey = "initial_quota_status"
-	CurrentQuotaStatusKey    contextKey = "current_quota_status"
-	InitialBandwidthKey      contextKey = "initial_bandwidth"
-	QuotaHistoryKey          contextKey = "quota_history"
-	QuotaExhaustedKey        contextKey = "quota_exhausted"
+	InitialQuotaStatusKey contextKey = "initial_quota_status"
+	CurrentQuotaStatusKey contextKey = "current_quota_status"
+	InitialBandwidthKey   contextKey = "initial_bandwidth"
+	QuotaHistoryKey       contextKey = "quota_history"
+	QuotaExhaustedKey     contextKey = "quota_exhausted"
+
+	// Billing/Subscription context keys
+	BillingCadenceKey     contextKey = "billing_cadence"
+	UserCancelResultKey   contextKey = "user_cancel_result"
 )
+
 // =============================================================================
 // Generic Context Helpers
 // =============================================================================
@@ -152,9 +157,9 @@ func GetContextValue[T any](ctx context.Context, key contextKey) (T, bool) {
 // This replaces 6 identical Add*Cleanup functions with a generic implementation
 func AddToCleanupList[T comparable](ctx context.Context, key contextKey, value T) context.Context {
 	listInterface := ctx.Value(key)
-	
+
 	var list []T
-	
+
 	// Use reflection to handle the slice type conversion safely
 	if listInterface != nil {
 		val := reflect.ValueOf(listInterface)
@@ -168,12 +173,12 @@ func AddToCleanupList[T comparable](ctx context.Context, key contextKey, value T
 			}
 		}
 	}
-	
+
 	// If list is nil or empty, initialize it
 	if list == nil {
 		list = []T{}
 	}
-	
+
 	// Append the new value
 	list = append(list, value)
 	return context.WithValue(ctx, key, list)
@@ -224,7 +229,7 @@ type TestUser struct {
 // The first user registered in the portal becomes admin - we create this once and protect it
 var (
 	globalAdminAccount *TestUser
-	globalAdminInit     sync.Once
+	globalAdminInit    sync.Once
 )
 
 // GenerateUniqueEmail creates a unique email address for testing
@@ -358,7 +363,7 @@ func GenerateUniqueContent(baseContent string) string {
 // Useful for testing large file uploads and performance scenarios
 func GenerateLargeTestFile(sizeBytes int64) ([]byte, error) {
 	content := make([]byte, sizeBytes)
-	
+
 	// Fill with random data using crypto/rand
 	_, err := rand.Read(content)
 	if err != nil {
@@ -418,15 +423,13 @@ func CIDsEqual(cid1, cid2 string) (bool, error) {
 	// This handles CIDv0/CIDv1 conversion properly
 	v1Cid1 := encoding.ToV1(decoded1)
 	v1Cid2 := encoding.ToV1(decoded2)
-	
+
 	if v1Cid1 == goCid.Undef || v1Cid2 == goCid.Undef {
 		return false, fmt.Errorf("unsupported CID version")
 	}
-	
+
 	return v1Cid1.Equals(v1Cid2), nil
 }
-
-
 
 // GenerateValidTOTPCode generates a valid TOTP code from a secret using time-based OTP
 func GenerateValidTOTPCode(secret string) (string, error) {
@@ -506,7 +509,7 @@ func VerifyAPIKeysNameFilter(ctx context.Context, filterName string, expectedKey
 		return ctx, fmt.Errorf("no authenticated client available")
 	}
 
-	allKeys, err := api.ListAPIKeys(ctx)
+	allKeys, _, err := api.ListAPIKeys(ctx)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to list API keys: %w", err)
 	}
@@ -550,7 +553,7 @@ func VerifyAPIKeysPagination(ctx context.Context, pageSize int) (context.Context
 		return ctx, nil, fmt.Errorf("no authenticated client available")
 	}
 
-	allKeys, err := api.ListAPIKeys(ctx)
+	allKeys, _, err := api.ListAPIKeys(ctx)
 	if err != nil {
 		return ctx, nil, fmt.Errorf("failed to list API keys: %w", err)
 	}
@@ -993,6 +996,35 @@ func SetPinnedStatus(ctx context.Context, pinned bool) context.Context {
 // GetPinnedStatus retrieves pinned status from context
 func GetPinnedStatus(ctx context.Context) (bool, bool) {
 	return GetContextValue[bool](ctx, PinnedStatusKey)
+}
+
+// SetBillingCadence stores the selected billing cadence (monthly/yearly) in context
+func SetBillingCadence(ctx context.Context, cadence string) context.Context {
+	return SetContextValue(ctx, BillingCadenceKey, cadence)
+}
+
+// GetBillingCadence retrieves the selected billing cadence from context
+func GetBillingCadence(ctx context.Context) (string, bool) {
+	return GetContextValue[string](ctx, BillingCadenceKey)
+}
+
+// SetUserCancelResult stores the user cancel ManagementResult in context
+func SetUserCancelResult(ctx context.Context, result *account.ManagementResult) context.Context {
+	return SetContextValue(ctx, UserCancelResultKey, result)
+}
+
+// GetUserCancelResult retrieves the user cancel ManagementResult from context
+func GetUserCancelResult(ctx context.Context) (*account.ManagementResult, bool) {
+	return GetContextValue[*account.ManagementResult](ctx, UserCancelResultKey)
+}
+
+// RequireUserCancelResult retrieves the user cancel result or returns an error
+func RequireUserCancelResult(ctx context.Context) (*account.ManagementResult, error) {
+	result, ok := GetUserCancelResult(ctx)
+	if !ok || result == nil {
+		return nil, fmt.Errorf("no user cancel result available")
+	}
+	return result, nil
 }
 
 // SetKnownContent stores content in context for integrity verification
