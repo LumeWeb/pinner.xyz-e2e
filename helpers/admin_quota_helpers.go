@@ -237,21 +237,22 @@ func ResetUsersForPlan(ctx context.Context, quotaAdmin *admin.QuotaService, plan
 
 // EnsureDefaultQuotaPlan ensures a default quota plan exists and returns its ID
 // This is used by billing infrastructure to ensure quota plans exist before creating pricing periods
-func EnsureDefaultQuotaPlan(ctx context.Context) (int64, error) {
+// Returns the modified context so cleanup registration is visible to the caller.
+func EnsureDefaultQuotaPlan(ctx context.Context) (context.Context, int64, error) {
 	adminClient, err := RequireAdminClient(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get admin client: %w", err)
+		return ctx, 0, fmt.Errorf("failed to get admin client: %w", err)
 	}
 
 	quotaAdmin := adminClient.Quota()
 	if quotaAdmin == nil {
-		return 0, fmt.Errorf("admin client's Quota() returned nil")
+		return ctx, 0, fmt.Errorf("admin client's Quota() returned nil")
 	}
 
 	// Check if a default plan already exists
 	plans, _, err := quotaAdmin.ListPlans(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("failed to list quota plans: %w", err)
+		return ctx, 0, fmt.Errorf("failed to list quota plans: %w", err)
 	}
 
 	// Look for a default plan
@@ -262,10 +263,10 @@ func EnsureDefaultQuotaPlan(ctx context.Context) (int64, error) {
 				plan.IsActive = true
 				_, err := quotaAdmin.UpdatePlan(ctx, fmt.Sprint(plan.Id), plan)
 				if err != nil {
-					return 0, fmt.Errorf("failed to activate default quota plan %d: %w", plan.Id, err)
+					return ctx, 0, fmt.Errorf("failed to activate default quota plan %d: %w", plan.Id, err)
 				}
 			}
-			return int64(plan.Id), nil
+			return ctx, int64(plan.Id), nil
 		}
 	}
 
@@ -282,24 +283,24 @@ func EnsureDefaultQuotaPlan(ctx context.Context) (int64, error) {
 
 	createdPlan, err := quotaAdmin.CreatePlan(ctx, newPlan)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create default quota plan: %w", err)
+		return ctx, 0, fmt.Errorf("failed to create default quota plan: %w", err)
 	}
 
 	// Activate it
 	createdPlan.IsActive = true
 	_, err = quotaAdmin.UpdatePlan(ctx, fmt.Sprint(createdPlan.Id), createdPlan)
 	if err != nil {
-		return 0, fmt.Errorf("failed to activate default quota plan: %w", err)
+		return ctx, 0, fmt.Errorf("failed to activate default quota plan: %w", err)
 	}
 
 	// Set it as the default plan
 	err = quotaAdmin.SetDefaultPlan(ctx, fmt.Sprint(createdPlan.Id))
 	if err != nil {
-		return 0, fmt.Errorf("failed to set default quota plan: %w", err)
+		return ctx, 0, fmt.Errorf("failed to set default quota plan: %w", err)
 	}
 
 	// Add to cleanup list
 	ctx = AddQuotaPlanCleanup(ctx, int64(createdPlan.Id))
 
-	return int64(createdPlan.Id), nil
+	return ctx, int64(createdPlan.Id), nil
 }

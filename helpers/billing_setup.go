@@ -211,7 +211,7 @@ func SetupBillingInfrastructureWithPlans(ctx context.Context, plans []PlanDefini
 
 	// Ensure a default quota plan exists before creating billing periods
 	// Billing infrastructure needs quota plans to reference when creating pricing plan periods
-	quotaPlanID, err := EnsureDefaultQuotaPlan(ctx)
+	ctx, quotaPlanID, err := EnsureDefaultQuotaPlan(ctx)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to ensure default quota plan: %w", err)
 	}
