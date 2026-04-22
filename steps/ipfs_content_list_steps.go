@@ -64,7 +64,7 @@ func (s *ContentListSteps) theUserHasUploadedFiles(ctx context.Context) (context
 			return ctx, fmt.Errorf("operation for file %d did not complete: %w", index, err)
 		}
 		
-		contents = append(contents, helpers.IPFSContent{fmt.Sprintf("file%d.txt", index+1), cid})
+		contents = append(contents, helpers.IPFSContent{Name: fmt.Sprintf("file%d.txt", index+1), CID: cid})
 	}
 
 	ctx = helpers.SetIPFSContentList(ctx, contents)

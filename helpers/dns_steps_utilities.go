@@ -12,7 +12,7 @@ const DefaultTTL = 3600
 
 // DNSRecordContext contains context values needed for DNS record operations
 type DNSRecordContext struct {
-	ZoneID    string
+	ZoneID     string
 	RecordFQDN string
 	RecordType string
 }
@@ -36,7 +36,7 @@ func RequireDNSRecordContext(ctx context.Context) (*DNSRecordContext, error) {
 	}
 
 	return &DNSRecordContext{
-		ZoneID:    zoneID,
+		ZoneID:     zoneID,
 		RecordFQDN: recordFQDN,
 		RecordType: recordType,
 	}, nil

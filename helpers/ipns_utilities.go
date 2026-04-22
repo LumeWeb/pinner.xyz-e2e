@@ -12,7 +12,7 @@ import (
 // IPNSKeyCleanup represents an IPNS key that needs to be cleaned up
 type IPNSKeyCleanup struct {
 	KeyID int
-	Name string
+	Name  string
 }
 
 // CreateIPNSKey creates an IPNS key and tracks it for cleanup
@@ -31,19 +31,19 @@ func CreateIPNSKey(ctx context.Context, name string) (context.Context, *ipfs_sdk
 	// Track key for cleanup
 	keyIDStr := strconv.Itoa(key.Id)
 	ctx = AddIPNSKeyCleanup(ctx, keyIDStr)
-	
+
 	// Store key details in context for verification steps
 	ctx = SetIPNSKeyID(ctx, key.Id)
 	ctx = SetIPNSKeyName(ctx, key.Name)
-	
+
 	if key.IpnsName != "" {
 		ctx = SetIPNSIPNSName(ctx, key.IpnsName)
 	}
-	
+
 	if key.PeerId != "" {
 		ctx = SetIPNSPeerID(ctx, key.PeerId)
 	}
-	
+
 	return ctx, key, nil
 }
 
@@ -170,12 +170,12 @@ func ResolveIPNSName(ctx context.Context, name string) (*ipfs_sdk.IPNSResolveRes
 // WaitForIPNSPublish waits for an IPNS publish operation to complete
 // Uses the SDK's WaitForIPNSResolution to poll until the record resolves to expected CID
 func WaitForIPNSPublish(ctx context.Context, keyID int, expectedCID string) error {
-	
+
 	ipnsService, err := RequireIPNSService(ctx)
 	if err != nil {
 		return err
 	}
-	
+
 	// Get the IPNS key to retrieve the peer ID/name
 	keyIDStr := fmt.Sprintf("%d", keyID)
 	key, err := ipnsService.GetKey(ctx, keyIDStr)

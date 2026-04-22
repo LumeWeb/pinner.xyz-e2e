@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	account "go.lumeweb.com/portal-sdk"
 	"go.lumeweb.com/ipfs-sdk"
+	account "go.lumeweb.com/portal-sdk"
 )
 
 // GenerateTestFile creates a temporary file with the specified name and content.

@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	ipfs "go.lumeweb.com/ipfs-sdk"
 	"go.lumeweb.com/ipfs-content/car"
+	ipfs "go.lumeweb.com/ipfs-sdk"
 	ipfs_sdk_fs "go.lumeweb.com/ipfs-sdk/fs"
 )
 
@@ -33,14 +33,14 @@ func IsQuotaEnforcementError(err error) bool {
 	if errors.Is(err, ipfs.ErrRateLimitExceeded) {
 		return true
 	}
-	
+
 	// Check for partial download failures that occur when quota enforcement
 	// blocks gateway access, preventing all blocks from being fetched
 	// We check both direct errors and wrapped errors that contain this message
 	if err != nil && containsErrorMessage(err, "failed to fetch all nodes") {
 		return true
 	}
-	
+
 	// Check for portal quota exceeded errors
 	if err != nil {
 		errorMsg := err.Error()
@@ -53,10 +53,9 @@ func IsQuotaEnforcementError(err error) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
-
 
 // IPFSPortalUpload uploads content to the portal via the IPFS SDK upload endpoint.
 // This creates an account operation and returns the CID and DAG size.

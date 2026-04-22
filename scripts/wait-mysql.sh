@@ -23,7 +23,6 @@ load_portal_env quiet
 # Extract DB credentials from PORTAL env vars
 MYSQL_USER="${PORTAL__CORE__DB__USERNAME}"
 MYSQL_PASSWORD="${PORTAL__CORE__DB__PASSWORD}"
-MYSQL_HOST="${PORTAL__CORE__DB__HOST}"
 
 log_info "Using docker MySQL container"
 export MYSQL_PWD="$MYSQL_PASSWORD"

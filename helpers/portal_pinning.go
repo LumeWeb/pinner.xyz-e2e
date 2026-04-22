@@ -7,16 +7,14 @@ import (
 	"time"
 
 	goCid "github.com/ipfs/go-cid"
+	"github.com/samber/lo"
 	"go.lumeweb.com/ipfs-sdk"
 	account "go.lumeweb.com/portal-sdk"
-	"github.com/samber/lo"
 )
 
 // DefaultOperationTimeout is the default timeout for IPFS operation completion.
 // This gives operations sufficient time to complete before timing out.
 const DefaultOperationTimeout = 30 * time.Minute
-
-
 
 // PortalPinning wraps Portal SDK pinning operations
 type PortalPinning struct {

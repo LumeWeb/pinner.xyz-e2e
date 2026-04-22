@@ -11,6 +11,8 @@ PORTAL_PORT ?= 8080
 .PHONY: start-dns stop-dns dns-logs ensure-venv setup-compliance wait-ipfs wait-powerdns
 .PHONY: test-tag debug-tag test-compliance
 .PHONY: _test-compliance
+.PHONY: start-stripe-mock stop-stripe-mock stripe-mock-logs reset-stripe-mock
+.PHONY: start-atlos-mock stop-atlos-mock atlos-mock-logs reset-atlos-mock
 
 help:
 	@echo "E2E Testing Environment Commands:"
@@ -26,6 +28,7 @@ help:
 	@echo "  make verify-services - Wait for all services to be ready"
 	@echo "  make recreate-mysql  - Recreate MySQL container to wipe data"
 	@echo "  make recreate-powerdns - Recreate PowerDNS container to wipe data"
+	@echo "  make reset-stripe-mock - Reset stripe-mock-server state"
 	@echo ""
 	@echo "DNS Server:"
 	@echo "  make start-dns       - Start dynamic DNS server (routes to localhost)"
@@ -159,7 +162,7 @@ _test-compliance: setup-compliance
 	@./scripts/run-compliance-tests.sh || true
 
 # Full Cycles
-e2e: up
+e2e: up build-portal setup-env start-dns start-stripe-mock start-atlos-mock start-portal
 	@echo "Running e2e test cycle..."
 	@$(MAKE) _test || true
 	@$(MAKE) down || true
@@ -203,23 +206,25 @@ test-compliance:
 	$(MAKE) _test-compliance || true
 
 # Full complete cycle: setup, test, teardown
-test: up build-portal setup-env start-dns start-portal
+test: up build-portal setup-env start-dns start-stripe-mock start-atlos-mock start-portal
 	@echo "Running tests against running portal..."
 	@$(MAKE) _test || true
 	@echo "Running compliance tests..."
 	@$(MAKE) _test-compliance || true
 	@echo "Tests complete, tearing down..."
 	@$(MAKE) stop-portal || true
+	@$(MAKE) stop-stripe-mock || true
+	@$(MAKE) stop-atlos-mock || true
 	@$(MAKE) stop-dns || true
 	@$(MAKE) down || true
 	@echo "[OK] Full cycle completed"
 
 # Setup only (no teardown)
-setup: up build-portal setup-env start-dns start-portal
+setup: up build-portal setup-env start-dns start-stripe-mock start-atlos-mock start-portal
 	@echo "[OK] Environment is ready for manual testing"
 
 # Teardown only
-teardown: down stop-portal stop-dns
+teardown: down stop-portal stop-stripe-mock stop-atlos-mock stop-dns
 	@echo "[OK] Environment torn down"
 
 # Stop portal
@@ -252,5 +257,39 @@ clean:
 	@echo "Cleaning up..."
 	@$(MAKE) down
 	@rm -rf dist .env portal portal-mysql.yml portal-plugins.yaml .venv
-	@rm -f .portal.pid .dns.pid .dns.log
+	@rm -f .portal.pid .dns.pid .dns.log .stripe-mock.pid .stripe-mock.log .atlos-mock.pid .atlos-mock.log
 	@echo "[OK] Cleanup complete"
+
+# Stripe Mock Server Management
+start-stripe-mock:
+	@./scripts/start-stripe-mock.sh
+
+stop-stripe-mock:
+	@./scripts/stop-stripe-mock.sh
+
+stripe-mock-logs:
+	@if [ -f .stripe-mock.log ]; then \
+		tail -f .stripe-mock.log; \
+	else \
+		echo "No stripe-mock log file found. Start stripe-mock server first with: make start-stripe-mock"; \
+	fi
+
+reset-stripe-mock:
+	@./scripts/reset-stripe-mock.sh
+
+# Atlos Mock Server Management
+start-atlos-mock:
+	@./scripts/start-atlos-mock.sh
+
+stop-atlos-mock:
+	@./scripts/stop-atlos-mock.sh
+
+atlos-mock-logs:
+	@if [ -f .atlos-mock.log ]; then \
+		tail -f .atlos-mock.log; \
+	else \
+		echo "No atlos-mock log file found. Start atlos-mock server first with: make start-atlos-mock"; \
+	fi
+
+reset-atlos-mock:
+	@./scripts/reset-atlos-mock.sh

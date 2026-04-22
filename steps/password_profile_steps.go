@@ -29,8 +29,6 @@ func (s *PasswordProfileSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^the user changes their password to "([^"]*)"$`, s.userChangesPasswordTo)
 	ctx.Step(`^the password is changed successfully$`, s.passwordChangedSuccessfully)
-	ctx.Step(`^the user can login with the new password$`, s.userCanLoginWithNewPassword)
-
 	ctx.Step(`^the user attempts to change password with invalid current password$`, s.attemptsChangeWithInvalidCurrentPassword)
 	ctx.Step(`^the password change fails$`, s.passwordChangeFails)
 	ctx.Step(`^the user attempts to change password to "([^"]*)"$`, s.attemptsChangePasswordTooShort)
@@ -137,21 +135,6 @@ func (s *PasswordProfileSteps) userChangesPasswordTo(ctx context.Context, newPas
 
 func (s *PasswordProfileSteps) passwordChangedSuccessfully(ctx context.Context) (context.Context, error) {
 	return helpers.ContextSuccess(ctx)
-}
-
-func (s *PasswordProfileSteps) userCanLoginWithNewPassword(ctx context.Context) (context.Context, error) {
-	testUser, err := helpers.RequireTestUser(ctx)
-	if err != nil {
-		return ctx, err
-	}
-
-	api := helpers.GetUnauthenticatedClient()
-	_, err = api.Login(ctx, testUser.Email, testUser.Password)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to login with new password: %w", err)
-	}
-
-	return ctx, nil
 }
 
 func (s *PasswordProfileSteps) attemptsChangeWithInvalidCurrentPassword(ctx context.Context) (context.Context, error) {

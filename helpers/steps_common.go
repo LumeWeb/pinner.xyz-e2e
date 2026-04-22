@@ -35,8 +35,6 @@ func GetEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-
-
 // GetPortalName returns the portal name from environment
 func GetPortalName() string {
 	return GetEnv("PORTAL__CORE__PORTAL_NAME", "test-portal")
@@ -100,7 +98,7 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 
 	logger := NewLogger(sc.Name)
 	logger.Debug(ctx, "=== Starting scenario: %s ===", sc.Name)
-	
+
 	// Log scenario tags for debugging
 	if sc.Tags != nil && len(sc.Tags) > 0 {
 		tags := make([]string, len(sc.Tags))
@@ -115,7 +113,7 @@ func beforeScenarioSetup(ctx context.Context, sc *godog.Scenario) (context.Conte
 	ctx = context.WithValue(ctx, OperationsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, PinRequestIDsCleanupKey, []string{})
 	ctx = context.WithValue(ctx, IPNSKeysCleanupKey, []string{})
-	
+
 	// Initialize DNS context keys to prevent cross-scenario contamination when running concurrently
 	// Each scenario must have its own isolated DNS context
 	ctx = context.WithValue(ctx, DNSZoneCleanupKey, []string{})
@@ -177,8 +175,6 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 	if sc == nil {
 		return ctx, err
 	}
-
-
 
 	var logger *Logger
 	if sc != nil {
@@ -264,6 +260,14 @@ func afterScenarioCleanup(ctx context.Context, sc *godog.Scenario, err error) (c
 	}
 	if err := CleanupAdminQuota(ctx); err != nil {
 		logger.Error(ctx, "Failed to cleanup admin quota resources: %v", err)
+	}
+
+	// Clean up admin billing resources created during the scenario
+	if logger != nil {
+		logger.Debug(ctx, "Cleaning up admin billing resources")
+	}
+	if err := CleanupAdminBilling(ctx); err != nil {
+		logger.Error(ctx, "Failed to cleanup admin billing resources: %v", err)
 	}
 
 	// Record scenario timing after all cleanup to avoid output interleaving
@@ -830,6 +834,25 @@ func GetResponseJSON(resp *http.Response) (map[string]any, error) {
 // AdminClientContextKey is the context key for storing admin client
 const AdminClientContextKey contextKey = "admin_client"
 
+// Billing infrastructure cleanup tracking
+const BillingInfrastructureCleanupKey contextKey = "billing_infrastructure_cleanup"
+
+// GetBillingInfrastructureCleanup retrieves the list of billing infra IDs to cleanup
+func GetBillingInfrastructureCleanup(ctx context.Context) []string {
+	cleanup, ok := GetContextValue[[]string](ctx, BillingInfrastructureCleanupKey)
+	if !ok {
+		return []string{}
+	}
+	return cleanup
+}
+
+// AddBillingInfrastructureCleanup adds a billing infrastructure ID to cleanup list
+func AddBillingInfrastructureCleanup(ctx context.Context, id string) context.Context {
+	cleanup := GetBillingInfrastructureCleanup(ctx)
+	cleanup = append(cleanup, id)
+	return SetContextValue(ctx, BillingInfrastructureCleanupKey, cleanup)
+}
+
 // SetAdminClient stores the admin client in context using generic helper
 func SetAdminClient(ctx context.Context, client *admin.AdminClient) context.Context {
 	return SetContextValue(ctx, AdminClientContextKey, client)
@@ -850,3 +873,142 @@ func RequireAdminClient(ctx context.Context) (*admin.AdminClient, error) {
 	}
 	return client, nil
 }
+
+// Billing infrastructure context management
+
+// BillingInfrastructureContextKey is the context key for storing billing infrastructure
+const BillingInfrastructureContextKey contextKey = "billing_infrastructure"
+
+// SetBillingInfrastructure stores the billing infrastructure in context using generic helper
+func SetBillingInfrastructure(ctx context.Context, id string, infra *BillingInfrastructure) context.Context {
+	return SetContextValue(ctx, BillingInfrastructureContextKey, infra)
+}
+
+// GetBillingInfrastructure retrieves the billing infrastructure ID and struct from context
+func GetBillingInfrastructure(ctx context.Context) (*BillingInfrastructure, string, bool) {
+	infra, ok := GetContextValue[*BillingInfrastructure](ctx, BillingInfrastructureContextKey)
+	if !ok || infra == nil {
+		return nil, "", false
+	}
+	id := fmt.Sprintf("billing-%d", infra.PriceLineID)
+	return infra, id, true
+}
+
+// RemoveBillingInfrastructure removes billing infrastructure from context
+func RemoveBillingInfrastructure(ctx context.Context) {
+	_, _ = GetContextValue[*BillingInfrastructure](ctx, BillingInfrastructureContextKey)
+}
+
+// CleanupBillingInfrastructure cleans up billing infrastructure created during the scenario
+func CleanupBillingInfrastructure(ctx context.Context) error {
+	cleanupList := GetBillingInfrastructureCleanup(ctx)
+	if len(cleanupList) == 0 {
+		return nil
+	}
+
+	for _, infraID := range cleanupList {
+		infra, _, ok := GetBillingInfrastructure(ctx)
+		if !ok {
+			continue
+		}
+
+		if infra != nil {
+			if err := CleanupBillingInfrastructureImpl(ctx, infra); err != nil {
+				return fmt.Errorf("failed to cleanup billing infrastructure %s: %w", infraID, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// CreateBillingInfrastructure creates billing infrastructure via portal admin API
+// Creates: price line, pricing plan, pricing plan period
+// Portal auto-triggers sync to Stripe
+func CreateBillingInfrastructure(ctx context.Context) (*BillingInfrastructure, error) {
+	return CreateBillingInfrastructureWithPlans(ctx, DefaultPlans)
+}
+
+// CreateBillingInfrastructureWithPlans creates billing infrastructure with custom plans
+func CreateBillingInfrastructureWithPlans(ctx context.Context, plans []PlanDefinition) (*BillingInfrastructure, error) {
+	adminClient, err := RequireAdminClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get admin client: %w", err)
+	}
+
+	billingService := adminClient.Billing()
+	if billingService == nil {
+		return nil, fmt.Errorf("admin client's Billing() returned nil")
+	}
+
+	// Create price line
+	createdPriceLine, err := adminClient.Billing().CreatePriceLine(ctx, &admin.PriceLineCreateRequest{
+		Name:        "Test Price Line",
+		Description: "Test price line for subscription testing",
+		IsActive:    true,
+		IsDefault:   true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create price line: %w", err)
+	}
+
+	infra := &BillingInfrastructure{
+		PriceLineID: uint(createdPriceLine.Id),
+		Plans:       make([]PricingPlanInfo, 0, len(plans)),
+	}
+
+	// Create each plan with monthly and yearly periods
+	for i, planDef := range plans {
+		// Create pricing plan (wire to price line via PricelineId and Position)
+		createdPlan, err := billingService.CreatePricingPlan(ctx, &admin.PricingPlanCreateRequest{
+			Name:           planDef.Name,
+			Description:    planDef.Description,
+			Currency:       "USD",
+			IsActive:       true,
+			IsPublic:       true, // Plans must be public for users to check out
+			PricingPeriods: []admin.PricingPlanPeriod{},
+			PricelineId:    new(int(infra.PriceLineID)),
+			Position:       &i,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create pricing plan %s: %w", planDef.Name, err)
+		}
+
+		planInfo := PricingPlanInfo{
+			PlanID:    uint(createdPlan.Id),
+			PeriodIDs: make([]uint, 0, 2),
+		}
+
+		// Create monthly period
+		monthlyPeriod := &admin.PricingPlanPeriodCreateRequest{
+			Cadence:       "monthly",
+			PriceUsd:      planDef.MonthlyPrice,
+			PricingPlanId: int(createdPlan.Id),
+			QuotaPlanId:   1,
+		}
+		createdMonthly, err := billingService.CreatePricingPlanPeriod(ctx, monthlyPeriod)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create monthly period for plan %s: %w", planDef.Name, err)
+		}
+		planInfo.PeriodIDs = append(planInfo.PeriodIDs, uint(createdMonthly.Id))
+
+		// Create yearly period
+		yearlyPeriod := &admin.PricingPlanPeriodCreateRequest{
+			Cadence:       "yearly",
+			PriceUsd:      planDef.YearlyPrice,
+			PricingPlanId: int(createdPlan.Id),
+			QuotaPlanId:   1,
+		}
+		createdYearly, err := billingService.CreatePricingPlanPeriod(ctx, yearlyPeriod)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create yearly period for plan %s: %w", planDef.Name, err)
+		}
+		planInfo.PeriodIDs = append(planInfo.PeriodIDs, uint(createdYearly.Id))
+
+		infra.Plans = append(infra.Plans, planInfo)
+	}
+
+	return infra, nil
+}
+
+// ResetStripeMock is defined in stripe_client.go

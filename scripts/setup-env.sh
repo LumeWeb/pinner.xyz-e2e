@@ -27,7 +27,6 @@ WORKFLOW_MODE="${2:-false}"
 
 # Config file locations (same for both local and GitHub Actions)
 WORKFLOWS_CORE_CONFIG=".github/config/portal-core.yml"
-YAML_TO_ENV_SCRIPT="scripts/yaml_to_env.py"
 # Preserve RENTERD_* and IPFS_* variables from environment or existing .env file
 # Environment variables take precedence over .env file
 PRESERVED_RENTERD_URL="${RENTERD_URL:-}"
@@ -68,18 +67,16 @@ if [ "$DB_TYPE" = "mysql" ] && [ -f "config/portal-mysql.yml" ]; then
   yq eval 'load("'$WORKFLOWS_CORE_CONFIG'") * .' config/portal-mysql.yml > portal-mysql.yml
 fi
 
-# Merge configs and convert to env vars
+# Export YAML configs to .env file
 CONFIG_FILES=()
 
 if [ "$DB_TYPE" = "mysql" ] && [ -f "portal-mysql.yml" ]; then
   CONFIG_FILES+=("portal-mysql.yml")
 fi
 
-# Convert YAML to env vars using Python script
-# Use a temporary file to collect all vars, then dedupe with last-wins
-TEMP_ENV=$(mktemp)
+# Export YAML configs to env file (all operations go through lib.sh abstractions)
 for config_file in "${CONFIG_FILES[@]}"; do
-  python3 "$YAML_TO_ENV_SCRIPT" "$config_file" "$TEMP_ENV"
+  export_env_from_yaml "$config_file" .env
 done
 
 # Dynamic renterd env var overrides
@@ -108,7 +105,7 @@ for env_var in "${!RENTERD_VARS[@]}"; do
   
   if [ -n "$value" ]; then
     # Use export_env helper
-    export_env "$TEMP_ENV" "$portal_var" "$value"
+    export_env .env "$portal_var" "$value"
   else
     echo "# ${env_var} not set, using empty value" >&2
   fi
@@ -132,7 +129,7 @@ if KUBO_PEER_ID_OUTPUT=$(./scripts/get-kubo-peer-id.sh 2>&1); then
         # PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS should be in CSV format
         # Format: PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS="addr1,addr2"
         BOOTSTRAP_CSV="$BOOTSTRAP_TCP,$BOOTSTRAP_UDP"
-        export_env "$TEMP_ENV" "PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS" "$BOOTSTRAP_CSV"
+        export_env .env "PORTAL__PLUGIN__IPFS__PROTOCOL__BOOTSTRAP_PEERS" "$BOOTSTRAP_CSV"
     else
         echo "Warning: Could not retrieve Kubo bootstrap addresses, using YAML defaults" >&2
     fi
@@ -141,9 +138,41 @@ else
     echo "Error details: $KUBO_PEER_ID_OUTPUT" >&2
 fi
 
-# Dedupe with last-wins (keep last occurrence of each var)
-tac "$TEMP_ENV" | awk -F= '!seen[$1]++' | tac > .env
-rm -f "$TEMP_ENV"
+
+# GitHub Actions mode: export all PORTAL__* variables to GITHUB_ENV
+
+# Stripe Mock Configuration
+# Default to 80 for stripe-mock server
+if [ -z "${STRIPE_MOCK_PORT:-}" ]; then
+    STRIPE_MOCK_PORT=80
+fi
+export_env .env STRIPE_MOCK_PORT "$STRIPE_MOCK_PORT"
+
+# Stripe Mock URL (constructed from port, or override via env)
+# Used by E2E test helpers to configure Stripe SDK backend
+if [ -z "${STRIPE_MOCK_URL:-}" ]; then
+    STRIPE_MOCK_URL="http://localhost:${STRIPE_MOCK_PORT}"
+fi
+export_env .env STRIPE_MOCK_URL "$STRIPE_MOCK_URL"
+
+# Stripe Mock Server Environment Variables
+# These are set by start-stripe-mock.sh and need to be preserved in .env
+# Stripe API key for mock server (deterministic default for e2e testing)
+if [ -z "${PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__API_KEY:-}" ]; then
+    echo "Setting default Stripe API key for mock server"
+    export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__API_KEY "sk_test_mock"
+fi
+
+# Stripe webhook secret (deterministic default for e2e testing)
+# Can be overridden by STRIPE_WEBHOOK_SECRET environment variable
+DEFAULT_WEBHOOK_SECRET="whsec_test_webhook_secret_for_e2e_testing"
+if [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
+    echo "Setting Stripe webhook secret from environment"
+    export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "${STRIPE_WEBHOOK_SECRET}"
+elif [ -z "${PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET:-}" ]; then
+    echo "Setting default Stripe webhook secret for mock server"
+    export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$DEFAULT_WEBHOOK_SECRET"
+fi
 
 # Source the env file to verify using shared loader
 # shellcheck disable=SC1091
@@ -156,7 +185,6 @@ export_env .env IPFS_API_ENDPOINT "${PRESERVED_IPFS_API_ENDPOINT}"
 # Export PORTAL_IPFS_PEER_ID environment variable for kubo bootstrap setup
 export_env .env PORTAL_IPFS_PEER_ID "${PRESERVED_PORTAL_IPFS_PEER_ID}"
 
-# GitHub Actions mode: export all PORTAL__* variables to GITHUB_ENV
 # This makes them available to all subsequent steps without needing to source .env
 if [ "$WORKFLOW_MODE" = "true" ]; then
   if [ -n "${GITHUB_ENV:-}" ]; then
@@ -170,6 +198,8 @@ if [ "$WORKFLOW_MODE" = "true" ]; then
         echo "PORTAL_HOST=${PORTAL_HOST:-localhost}"
         echo "IPFS_API_ENDPOINT=${PRESERVED_IPFS_API_ENDPOINT}"
         echo "PORTAL_IPFS_PEER_ID=${PRESERVED_PORTAL_IPFS_PEER_ID}"
+        echo "STRIPE_MOCK_PORT=${STRIPE_MOCK_PORT}"
+        echo "STRIPE_MOCK_URL=${STRIPE_MOCK_URL}"
     } >> "$GITHUB_ENV"
   else
     echo "Warning: GITHUB_ENV not set, skipping export to GitHub Actions environment" >&2

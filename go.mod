@@ -14,9 +14,10 @@ require (
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/pquerna/otp v1.5.0
 	github.com/samber/lo v1.53.0
+	github.com/stripe/stripe-go/v85 v85.0.1
 	go.lumeweb.com/ipfs-content v0.1.15
 	go.lumeweb.com/ipfs-sdk v0.1.34
-	go.lumeweb.com/portal-sdk v0.1.21-0.20260407212840-dee5002c683d
+	go.lumeweb.com/portal-sdk v0.1.42
 )
 
 require (
@@ -119,6 +120,7 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
@@ -133,6 +135,7 @@ require (
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/woodsbury/decimal128 v1.4.0 // indirect
+	go.lumeweb.com/atlos-sdk v0.1.1 // indirect
 	go.lumeweb.com/gswagger v0.20.10 // indirect
 	go.lumeweb.com/portal v0.4.2-0.20251225165008-2bdb358c492d // indirect
 	go.lumeweb.com/portal-middleware v0.3.4 // indirect

@@ -84,8 +84,8 @@ func GenerateTestWebsiteDomain() string {
 func BuildWebsiteRequest(domain, targetHash, targetType string, dnsHostingEnabled bool) ipfs.WebsiteRequest {
 	return ipfs.WebsiteRequest{
 		Domain:            domain,
-		TargetHash:       targetHash,
-		TargetType:       targetType,
+		TargetHash:        targetHash,
+		TargetType:        targetType,
 		DnsHostingEnabled: &dnsHostingEnabled,
 	}
 }

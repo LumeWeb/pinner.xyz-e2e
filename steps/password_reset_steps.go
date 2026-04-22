@@ -21,15 +21,12 @@ func NewPasswordResetSteps() *PasswordResetSteps {
 
 // InitializeScenario registers steps with the scenario context
 func (s *PasswordResetSteps) InitializeScenario(ctx *godog.ScenarioContext) {
-	// Password reset steps
-	ctx.Step(`^an existing registered user$`, s.anExistingRegisteredUser)
 	ctx.Step(`^the user requests a password reset for their email$`, s.userRequestsPasswordReset)
 	ctx.Step(`^the password reset request is successful$`, s.passwordResetRequestSuccessful)
 	ctx.Step(`^the user has requested a password reset$`, s.userHasRequestedPasswordReset)
 	ctx.Step(`^the password reset email has been received with a token$`, s.passwordResetEmailReceived)
 	ctx.Step(`^the user resets their password using the token$`, s.userResetsPasswordWithToken)
 	ctx.Step(`^the password is updated successfully$`, s.passwordUpdatedSuccessfully)
-	ctx.Step(`^the user can login with the new password$`, s.userCanLoginWithNewPassword)
 	ctx.Step(`^the user attempts to reset their password with an invalid token$`, s.userAttemptsResetWithInvalidToken)
 	ctx.Step(`^the password reset fails$`, s.passwordResetFails)
 
@@ -43,10 +40,6 @@ func (s *PasswordResetSteps) InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the user requests a new verification email$`, s.userRequestsNewVerificationEmail)
 	ctx.Step(`^the verification email is sent successfully$`, s.verificationEmailSentSuccessfully)
 	ctx.Step(`^the verification email is received$`, s.verificationEmailReceived)
-}
-
-func (s *PasswordResetSteps) anExistingRegisteredUser(ctx context.Context) (context.Context, error) {
-	return helpers.RegisterTestUser(ctx)
 }
 
 func (s *PasswordResetSteps) userRequestsPasswordReset(ctx context.Context) (context.Context, error) {
@@ -138,27 +131,6 @@ func (s *PasswordResetSteps) userResetsPasswordWithToken(ctx context.Context) (c
 
 func (s *PasswordResetSteps) passwordUpdatedSuccessfully(ctx context.Context) (context.Context, error) {
 	return helpers.ContextSuccess(ctx)
-}
-
-func (s *PasswordResetSteps) userCanLoginWithNewPassword(ctx context.Context) (context.Context, error) {
-	testUser, err := helpers.RequireTestUser(ctx)
-	if err != nil {
-		return ctx, err
-	}
-
-	api := helpers.GetUnauthenticatedClient()
-
-	// Try to login with new password
-	loginResult, err := api.Login(ctx, testUser.Email, testUser.Password)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to login with new password: %w", err)
-	}
-
-	if loginResult.Token == "" {
-		return ctx, fmt.Errorf("login succeeded but no token returned")
-	}
-
-	return ctx, nil
 }
 
 func (s *PasswordResetSteps) userAttemptsResetWithInvalidToken(ctx context.Context) (context.Context, error) {

@@ -164,12 +164,12 @@ func CleanupAdminQuota(ctx context.Context) error {
 
 		// Try to delete the plan
 		err = quotaAdmin.DeletePlan(ctx, fmt.Sprint(planID))
-		
+
 		// "plan not found" is not an error - it was already deleted
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "not found") {
 			continue
 		}
-		
+
 		// If deletion fails due to plan being in use, log warning and continue
 		// The plan will remain, but that's not fatal for cleanup
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "in use") {
@@ -181,17 +181,17 @@ func CleanupAdminQuota(ctx context.Context) error {
 	// Clean up quota allowances
 	for _, allowanceID := range allowanceIDs {
 		err := quotaAdmin.DeleteAllowance(ctx, fmt.Sprint(allowanceID))
-		
+
 		// "not found" is not an error - it was already deleted or never existed
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "not found") {
 			continue
 		}
-		
+
 		// "grant not found" is also not an error - portal-specific error message
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "grant not found") {
 			continue
 		}
-		
+
 		// Other errors are logged but ignored during cleanup to allow other resources to be cleaned up
 		// This matches the pattern used for plan cleanup
 		if err != nil {
@@ -233,4 +233,74 @@ func ResetUsersForPlan(ctx context.Context, quotaAdmin *admin.QuotaService, plan
 	}
 
 	return nil
+}
+
+// EnsureDefaultQuotaPlan ensures a default quota plan exists and returns its ID
+// This is used by billing infrastructure to ensure quota plans exist before creating pricing periods
+// Returns the modified context so cleanup registration is visible to the caller.
+func EnsureDefaultQuotaPlan(ctx context.Context) (context.Context, int64, error) {
+	adminClient, err := RequireAdminClient(ctx)
+	if err != nil {
+		return ctx, 0, fmt.Errorf("failed to get admin client: %w", err)
+	}
+
+	quotaAdmin := adminClient.Quota()
+	if quotaAdmin == nil {
+		return ctx, 0, fmt.Errorf("admin client's Quota() returned nil")
+	}
+
+	// Check if a default plan already exists
+	plans, _, err := quotaAdmin.ListPlans(ctx)
+	if err != nil {
+		return ctx, 0, fmt.Errorf("failed to list quota plans: %w", err)
+	}
+
+	// Look for a default plan
+	for _, plan := range plans {
+		if plan.IsDefault {
+			// Plan exists and is default - ensure it's active
+			if !plan.IsActive {
+				plan.IsActive = true
+				_, err := quotaAdmin.UpdatePlan(ctx, fmt.Sprint(plan.Id), plan)
+				if err != nil {
+					return ctx, 0, fmt.Errorf("failed to activate default quota plan %d: %w", plan.Id, err)
+				}
+			}
+			return ctx, int64(plan.Id), nil
+		}
+	}
+
+	// No default plan exists, create one
+	newPlan := admin.NewQuotaPlan("Default Test Plan", "Default quota plan for billing testing", admin.QuotaLimits{
+		UploadLimitBytes:   10 * 1024 * 1024 * 1024, // 10GB
+		DownloadLimitBytes: 50 * 1024 * 1024 * 1024, // 50GB
+		StorageLimitBytes:  1 * 1024 * 1024 * 1024,  // 1GB
+		WindowDuration:     0,
+		WindowStartHour:    0,
+		WindowTimezone:     "",
+		WindowType:         "LIFETIME",
+	})
+
+	createdPlan, err := quotaAdmin.CreatePlan(ctx, newPlan)
+	if err != nil {
+		return ctx, 0, fmt.Errorf("failed to create default quota plan: %w", err)
+	}
+
+	// Activate it
+	createdPlan.IsActive = true
+	_, err = quotaAdmin.UpdatePlan(ctx, fmt.Sprint(createdPlan.Id), createdPlan)
+	if err != nil {
+		return ctx, 0, fmt.Errorf("failed to activate default quota plan: %w", err)
+	}
+
+	// Set it as the default plan
+	err = quotaAdmin.SetDefaultPlan(ctx, fmt.Sprint(createdPlan.Id))
+	if err != nil {
+		return ctx, 0, fmt.Errorf("failed to set default quota plan: %w", err)
+	}
+
+	// Add to cleanup list
+	ctx = AddQuotaPlanCleanup(ctx, int64(createdPlan.Id))
+
+	return ctx, int64(createdPlan.Id), nil
 }

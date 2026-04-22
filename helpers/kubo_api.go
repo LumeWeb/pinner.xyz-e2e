@@ -247,7 +247,7 @@ func KuboResolveIPNS(ctx context.Context, ipnsName string) (string, error) {
 // Returns the IPNS name (e.g., k51qz...) or an error
 func KuboIPNSPublishPath(ctx context.Context, keyName string, cid string) (string, error) {
 	const funcName = "KuboIPNSPublishPath"
-	
+
 	client, err := kuboClientWithPanicHandling(funcName, ctx)
 	if err != nil {
 		return "", err
@@ -278,7 +278,7 @@ func KuboIPNSPublishPath(ctx context.Context, keyName string, cid string) (strin
 // Returns a list of key names or an error
 func KuboIPNSListKeys(ctx context.Context) ([]string, error) {
 	const funcName = "KuboIPNSListKeys"
-	
+
 	client, err := kuboClientWithPanicHandling(funcName, ctx)
 	if err != nil {
 		return nil, err
@@ -305,7 +305,7 @@ func KuboIPNSListKeys(ctx context.Context) ([]string, error) {
 // Returns the key name or an error
 func KuboIPNSCreateKey(ctx context.Context, name string) (string, error) {
 	const funcName = "KuboIPNSCreateKey"
-	
+
 	client, err := kuboClientWithPanicHandling(funcName, ctx)
 	if err != nil {
 		return "", err
@@ -340,4 +340,3 @@ func KuboFetchViaIPFSNetwork(ctx context.Context, cidString string) error {
 
 	return nil
 }
-
