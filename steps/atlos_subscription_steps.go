@@ -63,8 +63,15 @@ func (s *AtlosSubscriptionSteps) theAtlosCheckoutSessionCompletes(ctx context.Co
 	if orderID == "" {
 		parsed, _ := helpers.ParseAtlosOrderID(sessionID)
 		orderID = parsed.Raw
-		amount = helpers.ResolveAtlosCheckoutAmount(ctx, orderID)
+		if storedAmount, ok := helpers.GetGatewayCheckoutAmount(ctx); ok && storedAmount > 0 {
+			amount = storedAmount
+		} else {
+			amount = helpers.ResolveAtlosCheckoutAmount(ctx, orderID)
+		}
 		currency = "USD"
+		if storedCurrency, ok := helpers.GetGatewayCheckoutCurrency(ctx); ok && storedCurrency != "" {
+			currency = storedCurrency
+		}
 	}
 
 	// Simulate the full Atlos checkout via API calls (not browser widget)
@@ -106,7 +113,13 @@ func (s *AtlosSubscriptionSteps) theUserPaysForTheNextBillingPeriodViaAtlos(ctx 
 	}
 
 	orderID, _ := helpers.ParseAtlosOrderID(subscriptionID)
-	amount := helpers.ResolveAtlosCheckoutAmount(ctx, orderID.Raw)
+
+	var amount float64
+	if storedAmount, ok := helpers.GetGatewayCheckoutAmount(ctx); ok && storedAmount > 0 {
+		amount = storedAmount
+	} else {
+		amount = helpers.ResolveAtlosCheckoutAmount(ctx, orderID.Raw)
+	}
 
 	_, err := helpers.SimulateAtlosCheckout(ctx, orderID.Raw, amount, "USD")
 	if err != nil {
