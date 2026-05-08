@@ -240,6 +240,8 @@ class DynamicDNSServer:
         whitelist_config = [
             ("RENTERD_URL", "url"),
             ("PORTAL__CORE__STORAGE__SIA__URL", "url"),
+            ("PORTAL__PLUGIN__SIA__PROTOCOL__URL", "url"),
+            ("PORTAL__PLUGIN__SIA__PROTOCOL__APP_URL", "url"),
         ]
 
         for env_var, extract_type in whitelist_config:

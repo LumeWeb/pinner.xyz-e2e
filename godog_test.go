@@ -88,6 +88,47 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	contentListSteps := steps.NewContentListSteps()
 	contentListSteps.InitializeScenario(ctx)
 
+	// Initialize Sia common steps (shared wait/verification steps)
+	// Must be registered before service-specific Sia steps
+	siaCommonSteps := steps.NewSiaCommonSteps()
+	siaCommonSteps.InitializeScenario(ctx)
+
+	// Initialize Sia connect steps
+	siaConnectSteps := steps.NewSiaConnectSteps()
+	siaConnectSteps.InitializeScenario(ctx)
+
+	// Initialize Sia object steps
+	siaObjectSteps := steps.NewSiaObjectSteps()
+	siaObjectSteps.InitializeScenario(ctx)
+
+	// Initialize Sia slab steps
+	siaSlabSteps := steps.NewSiaSlabSteps()
+	siaSlabSteps.InitializeScenario(ctx)
+
+	// Initialize Sia account steps
+	siaAccountSteps := steps.NewSiaAccountSteps()
+	siaAccountSteps.InitializeScenario(ctx)
+
+	// Initialize Sia connect UI steps
+	siaConnectUISteps := steps.NewSiaConnectUISteps()
+	siaConnectUISteps.InitializeScenario(ctx)
+
+	// Initialize Sia quota steps
+	siaQuotaSteps := steps.NewSiaQuotaSteps()
+	siaQuotaSteps.InitializeScenario(ctx)
+
+	// Initialize Sia app account steps
+	siaAppAccountSteps := steps.NewSiaAppAccountSteps()
+	siaAppAccountSteps.InitializeScenario(ctx)
+
+	// Initialize Sia sharing steps
+	siaSharingSteps := steps.NewSiaSharingSteps()
+	siaSharingSteps.InitializeScenario(ctx)
+
+	// Initialize Sia error handling steps
+	siaErrorHandlingSteps := steps.NewSiaErrorHandlingSteps()
+	siaErrorHandlingSteps.InitializeScenario(ctx)
+
 	// Initialize IPNS common steps (shared wait/verification steps)
 	// Must be registered before service-specific IPNS steps
 	ipnsCommonSteps := steps.NewIPNSCommonSteps()

@@ -130,6 +130,19 @@ const (
 	// Billing/Subscription context keys
 	BillingCadenceKey     contextKey = "billing_cadence"
 	UserCancelResultKey   contextKey = "user_cancel_result"
+
+	// Sia context keys for Sia state management
+	SiaAppKeyKey           contextKey = "sia_app_key"
+	SiaMnemonicKey         contextKey = "sia_mnemonic"
+	SiaConnectRequestIDKey contextKey = "sia_connect_request_id"
+	SiaObjectKeyKey        contextKey = "sia_object_key"
+	SiaSlabIDKey           contextKey = "sia_slab_id"
+	SiaObjectsCleanupKey     contextKey = "sia_objects_cleanup"
+	SiaSlabsCleanupKey       contextKey = "sia_slabs_cleanup"
+	SiaSDKKey                contextKey = "sia_sdk"
+	SiaConnectUIResponseKey  contextKey = "sia_connect_ui_response"
+	SiaConnectApprovedKey    contextKey = "sia_connect_approved"
+	SiaAppIDKey              contextKey = "sia_app_id"
 )
 
 // =============================================================================
@@ -341,9 +354,9 @@ func CreateAdminClient(ctx context.Context) (context.Context, error) {
 
 	// Create admin client with JWT and host override
 	adminClient := admin.NewClient(
-		admin.WithEndpoint("http://localhost:8080"),
+		admin.WithEndpoint(GetPortalEndpoint()),
 		admin.WithJWT(loginResult.Token),
-		admin.WithHostOverride("admin.localhost:8080", "localhost:8080"),
+		admin.WithHostOverride("admin."+GetPortalTarget(), GetPortalTarget()),
 	)
 
 	ctx = SetAdminClient(ctx, adminClient)

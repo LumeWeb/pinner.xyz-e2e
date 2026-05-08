@@ -134,9 +134,13 @@ jobs:
     
     - name: Setup Environment
       uses: ./.github/actions/setup-env
+      with:
+        renterd_url: ${{ secrets.RENTERD_URL }}
+        renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
+        indexd_admin_url: ${{ secrets.INDEXD_ADMIN_URL }}
+        indexd_admin_key: ${{ secrets.INDEXD_ADMIN_KEY }}
+        indexd_app_url: ${{ secrets.INDEXD_APP_URL }}
       env:
-        RENTERD_URL: ${{ secrets.RENTERD_URL }}
-        RENTERD_API_PASSWORD: ${{ secrets.RENTERD_API_PASSWORD }}
         IPFS_API_ENDPOINT: http://localhost:5001
     
     - name: Start Portal
@@ -145,6 +149,9 @@ jobs:
       with:
         renterd_url: ${{ secrets.RENTERD_URL }}
         renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
+        indexd_admin_url: ${{ secrets.INDEXD_ADMIN_URL }}
+        indexd_admin_key: ${{ secrets.INDEXD_ADMIN_KEY }}
+        indexd_app_url: ${{ secrets.INDEXD_APP_URL }}
     
     - name: Run E2E Tests
       id: run-e2e-tests
@@ -160,6 +167,16 @@ jobs:
         ./scripts/setup-compliance.sh
         ./scripts/run-compliance-tests.sh
     
+    - name: Run Sia E2E Tests
+      id: run-sia-tests
+      if: ${{ env.RENTERD_URL != '' && env.INDEXD_ADMIN_URL != '' }}
+      env:
+        RENTERD_URL: ${{ secrets.RENTERD_URL }}
+        INDEXD_ADMIN_URL: ${{ secrets.INDEXD_ADMIN_URL }}
+      run: |
+        chmod +x ./scripts/run-tests.sh
+        ./scripts/run-tests.sh --godog.tags="@sia"
+    
     - name: Portal Logs
       if: always()
       run: |
@@ -171,9 +188,17 @@ jobs:
     - name: Keep job alive for debugging
       if: always() && runner.debug == '1'
       run: |
+        # Sleep for CI debugging when tests are not fully successful
+        # Only exit immediately when all tests pass
+        SIA_OUTCOME="${{ steps.run-sia-tests.outcome }}"
+        # Treat skipped Sia tests as success (INDEXD secrets not configured)
+        if [ "$SIA_OUTCOME" = "skipped" ]; then
+          SIA_OUTCOME="success"
+        fi
         if ! { [ "${{ steps.run-e2e-tests.outcome }}" == "success" ] && \
-               [ "${{ steps.run-compliance-tests.outcome }}" == "success" ]; } then
-          echo "Tests not fully successful (failed: e2e=${{ steps.run-e2e-tests.outcome }}, compliance=${{ steps.run-compliance-tests.outcome }}), sleeping for debugging..."
+               [ "${{ steps.run-compliance-tests.outcome }}" == "success" ] && \
+               [ "$SIA_OUTCOME" == "success" ]; } then
+          echo "Tests not fully successful (failed: e2e=${{ steps.run-e2e-tests.outcome }}, compliance=${{ steps.run-compliance-tests.outcome }}, sia=$SIA_OUTCOME), sleeping for debugging..."
           sleep 1800
         else
           echo "All tests passed successfully, not sleeping"
