@@ -64,10 +64,8 @@ if is_process_running "$STRIPE_MOCK_PID"; then
 fi
 
 # Build command args for stripe-mock
-# Set Stripe API version to match portal's stripe-go v83.2.1
 STRIPE_MOCK_ARGS=(
   "-port" "$STRIPE_MOCK_PORT"
-  "-stripe-api-version" "2025-10-29.clover"
 )
 if [ "${VERBOSE:-0}" = "1" ]; then
   STRIPE_MOCK_ARGS+=("-verbose")
