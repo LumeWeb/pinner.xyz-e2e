@@ -16,6 +16,7 @@ if is_process_running .stripe-mock.pid; then
   PID=$(cat .stripe-mock.pid)
   stop_process "$PID" 10 "stripe-mock"
   cleanup_pid .stripe-mock.pid
+  rm -f .stripe-webhook-secret
   log_ok "Stripe-mock stopped"
 else
   log_ok "Stripe-mock not running"

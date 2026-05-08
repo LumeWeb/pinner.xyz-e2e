@@ -257,7 +257,7 @@ clean:
 	@echo "Cleaning up..."
 	@$(MAKE) down
 	@rm -rf dist .env portal portal-mysql.yml portal-plugins.yaml .venv
-	@rm -f .portal.pid .dns.pid .dns.log .stripe-mock.pid .stripe-mock.log .atlos-mock.pid .atlos-mock.log
+	@rm -f .portal.pid .dns.pid .dns.log .stripe-mock.pid .stripe-mock.log .stripe-webhook-secret .atlos-mock.pid .atlos-mock.log
 	@echo "[OK] Cleanup complete"
 
 # Stripe Mock Server Management

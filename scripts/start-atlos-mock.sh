@@ -64,9 +64,6 @@ ATLOS_MOCK_ARGS=(
   "--shared-secret" "$ATLOS_SHARED_SECRET"
   "--postback-mode" "$ATLOS_POSTBACK_MODE"
 )
-if [ "${VERBOSE:-0}" = "1" ]; then
-  ATLOS_MOCK_ARGS+=("--verbose")
-fi
 
 # Start the server
 MOCK_SERVER_PID=""

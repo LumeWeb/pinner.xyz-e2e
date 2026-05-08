@@ -55,10 +55,21 @@ fi
 if is_process_running "$STRIPE_MOCK_PID"; then
   log_info "Stripe-mock already running (PID: $(cat "$STRIPE_MOCK_PID"))"
 
-  # Register webhook endpoint (idempotent)
-  log_info "Registering webhook endpoint..."
-  if ! ./scripts/setup-stripe-webhook.sh "$STRIPE_WEBHOOK_URL" "$STRIPE_API_KEY"; then
-    log_warn "Failed to register webhook, but stripe-mock is running"
+  # If we have a saved webhook secret, ensure it's in .env
+  # (avoid re-registering which creates a new secret and invalidates the old one)
+  if [ -f .stripe-webhook-secret ]; then
+    SAVED_SECRET=$(cat .stripe-webhook-secret)
+    if [ -n "$SAVED_SECRET" ]; then
+      log_info "Restoring webhook secret from .stripe-webhook-secret"
+      export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$SAVED_SECRET"
+      log_ok "Webhook secret restored"
+    fi
+  else
+    # No saved secret — register webhook endpoint (idempotent but creates new secret)
+    log_info "Registering webhook endpoint..."
+    if ! ./scripts/setup-stripe-webhook.sh "$STRIPE_WEBHOOK_URL" "$STRIPE_API_KEY"; then
+      log_warn "Failed to register webhook, but stripe-mock is running"
+    fi
   fi
   exit 0
 fi
