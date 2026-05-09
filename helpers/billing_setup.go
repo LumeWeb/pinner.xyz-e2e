@@ -525,6 +525,10 @@ func PollSubscriptionStatus(ctx context.Context, userID int, active bool, timeou
 		return fmt.Errorf("no subscriber found for user %d", userID)
 	}
 
+	// When checking for inactive (paused/canceled), also verify PausedAt is set
+	// to distinguish paused from canceled.
+	checkPaused := !active
+
 	// Poll for expected status
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
@@ -534,15 +538,17 @@ func PollSubscriptionStatus(ctx context.Context, userID int, active bool, timeou
 	for {
 		select {
 		case <-ticker.C:
-			// Fetch latest subscription status
 			latestSubscribers, _, err := adminClient.Billing().GetUserSubscribers(ctx, fmt.Sprint(userID))
 			if err != nil {
 				continue
 			}
 
 			if len(latestSubscribers) > 0 {
-				// Check if active state matches
-				if latestSubscribers[0].IsActive == active {
+				sub := latestSubscribers[0]
+				if sub.IsActive == active {
+					if checkPaused && sub.PausedAt == nil {
+						continue
+					}
 					return nil
 				}
 			}

@@ -244,8 +244,8 @@ func (s *AdminSubscriptionSteps) theAdminPausesTheUsersSubscription(ctx context.
 
 	ctx = helpers.SetAdminManagementResult(ctx, result)
 
-	// Poll for subscription status - should be paused
-	err = helpers.PollSubscriptionStatus(ctx, userID, true, 30*time.Second)
+	// Poll for subscription status - should be paused (is_active=false, paused_at set)
+	err = helpers.PollSubscriptionStatus(ctx, userID, false, 30*time.Second)
 	if err != nil {
 		return ctx, fmt.Errorf("subscription was not paused: %w", err)
 	}

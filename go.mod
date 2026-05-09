@@ -18,7 +18,7 @@ require (
 	go.lumeweb.com/atlos-sdk v0.1.3
 	go.lumeweb.com/ipfs-content v0.1.15
 	go.lumeweb.com/ipfs-sdk v0.1.34
-	go.lumeweb.com/portal-sdk v0.1.51
+	go.lumeweb.com/portal-sdk v0.1.52
 )
 
 require (
