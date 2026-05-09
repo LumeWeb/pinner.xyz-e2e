@@ -150,10 +150,7 @@ func GetPlanPositionInPriceLine(priceLine *admin.PriceLineDetailResponse, planID
 	id := planID.AsInt()
 	for _, plan := range priceLine.Plans {
 		if plan.Id == id {
-			if plan.Position != nil {
-				return *plan.Position
-			}
-			return 0
+			return plan.Position
 		}
 	}
 	return -1

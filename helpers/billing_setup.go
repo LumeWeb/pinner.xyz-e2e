@@ -391,8 +391,11 @@ func checkSubscriptionStatus(status *account.SubscriptionStatus, expected string
 			return fmt.Errorf("expected subscription status 'canceled', got active")
 		}
 	case "paused":
-		if !status.IsSubscribed {
-			return fmt.Errorf("expected subscription status 'paused', got inactive")
+		if status.PausedAt == nil {
+			if status.IsSubscribed {
+				return fmt.Errorf("expected subscription status 'paused', got active")
+			}
+			return fmt.Errorf("expected subscription status 'paused', got inactive (paused_at is nil)")
 		}
 	default:
 		return fmt.Errorf("unknown subscription status: %s", expected)

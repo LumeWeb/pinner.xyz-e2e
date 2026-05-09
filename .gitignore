@@ -49,6 +49,9 @@ Thumbs.db
 # Renterd environment
 .env.renterd
 
+# Stripe mock state
+.stripe-webhook-secret
+
 # Vendor and IPFS data
 vendor/
 ipfs/

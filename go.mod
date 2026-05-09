@@ -18,7 +18,7 @@ require (
 	go.lumeweb.com/atlos-sdk v0.1.3
 	go.lumeweb.com/ipfs-content v0.1.15
 	go.lumeweb.com/ipfs-sdk v0.1.34
-	go.lumeweb.com/portal-sdk v0.1.42
+	go.lumeweb.com/portal-sdk v0.1.50
 )
 
 require (
@@ -26,6 +26,7 @@ require (
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/apt304/sse-go v0.0.3 // indirect
 	github.com/avast/retry-go/v4 v4.7.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bdragon300/tusgo v0.1.2 // indirect
