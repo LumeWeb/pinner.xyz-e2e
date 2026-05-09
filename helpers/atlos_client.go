@@ -53,32 +53,78 @@ func getAtlosMockClient() *atlos.Client {
 	return atlosMockClient
 }
 
-// AtlosOrderID represents an Atlos order ID format used in the widget
-// Format: "{userID}-period{periodID}"
+// AtlosOrderID represents a parsed Atlos order ID.
+// Supports three formats produced by the billing plugin:
+//   - Legacy:    {userID}-period{periodID}
+//   - Regular:   sub-{userID}-{newPeriodID}-{timestamp}-{hmac}
+//   - Prorated:  sub-{userID}-{oldPeriodID}-{newPeriodID}-prorated-{timestamp}-{hmac}
 type AtlosOrderID struct {
-	UserID   string
-	PeriodID string
-	Raw      string
+	UserID      string
+	OldPeriodID string // Only set for prorated plan changes
+	PeriodID    string // NewPeriodID for prorated; the billing period for regular/legacy
+	IsProrated  bool
+	Raw         string
 }
 
-// ParseAtlosOrderID parses an order ID. If the format doesn't match (e.g. webhook payload),
-// returns the raw value with empty fields.
+// ParseAtlosOrderID parses an order ID into its structured fields.
+// If the format doesn't match any known pattern, returns the raw value with empty fields.
 func ParseAtlosOrderID(orderID string) (*AtlosOrderID, error) {
-	// Find the "-period" separator
+	if orderID == "" {
+		return &AtlosOrderID{}, nil
+	}
+
+	if strings.HasPrefix(orderID, "sub-") {
+		return parseNewFormatOrderID(orderID)
+	}
+
 	sep := "-period"
 	idx := strings.Index(orderID, sep)
-	if idx == -1 {
+	if idx != -1 {
 		return &AtlosOrderID{
-			Raw: orderID,
+			UserID:   orderID[:idx],
+			PeriodID: orderID[idx+len(sep):],
+			Raw:      orderID,
 		}, nil
 	}
 
-	userID := orderID[:idx]
-	periodID := orderID[idx+len(sep):]
+	return &AtlosOrderID{
+		Raw: orderID,
+	}, nil
+}
 
+func parseNewFormatOrderID(orderID string) (*AtlosOrderID, error) {
+	parts := strings.Split(orderID, "-")
+	if len(parts) < 5 {
+		return &AtlosOrderID{Raw: orderID}, nil
+	}
+
+	userID := parts[1]
+
+	isProrated := false
+	for _, p := range parts {
+		if p == "prorated" {
+			isProrated = true
+			break
+		}
+	}
+
+	if isProrated {
+		if len(parts) < 7 {
+			return &AtlosOrderID{Raw: orderID}, nil
+		}
+		return &AtlosOrderID{
+			UserID:      userID,
+			OldPeriodID: parts[2],
+			PeriodID:    parts[3],
+			IsProrated:  true,
+			Raw:         orderID,
+		}, nil
+	}
+
+	// Regular: sub-{userID}-{newPeriodID}-{timestamp}-{hmac}
 	return &AtlosOrderID{
 		UserID:   userID,
-		PeriodID: periodID,
+		PeriodID: parts[2],
 		Raw:      orderID,
 	}, nil
 }
@@ -423,7 +469,9 @@ func ParseAtlosCheckoutFromFragments(fragments []account.CheckoutUIFragment) (*A
 }
 
 // ResolveAtlosCheckoutAmount resolves the payment amount from the order ID.
-// The order ID format "{userID}-period{periodID}" encodes the period.
+// For new-format IDs (sub-...), PeriodID is the newPeriodID from the order ID.
+// For prorated orders, returns period.PriceUSD of the new period (the fragment
+// path should be used for the actual prorated amount).
 // Falls back to 10.0 if lookup fails.
 func ResolveAtlosCheckoutAmount(ctx context.Context, orderID string) float64 {
 	parsed, _ := ParseAtlosOrderID(orderID)

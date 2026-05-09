@@ -15,9 +15,10 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/samber/lo v1.53.0
 	github.com/stripe/stripe-go/v85 v85.0.1
+	go.lumeweb.com/atlos-sdk v0.1.3
 	go.lumeweb.com/ipfs-content v0.1.15
 	go.lumeweb.com/ipfs-sdk v0.1.34
-	go.lumeweb.com/portal-sdk v0.1.42
+	go.lumeweb.com/portal-sdk v0.1.53
 )
 
 require (
@@ -25,6 +26,7 @@ require (
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/apt304/sse-go v0.0.3 // indirect
 	github.com/avast/retry-go/v4 v4.7.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bdragon300/tusgo v0.1.2 // indirect
@@ -135,7 +137,6 @@ require (
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/woodsbury/decimal128 v1.4.0 // indirect
-	go.lumeweb.com/atlos-sdk v0.1.1 // indirect
 	go.lumeweb.com/gswagger v0.20.10 // indirect
 	go.lumeweb.com/portal v0.4.2-0.20251225165008-2bdb358c492d // indirect
 	go.lumeweb.com/portal-middleware v0.3.4 // indirect

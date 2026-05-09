@@ -164,9 +164,15 @@ if [ -z "${PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__API_KEY:-}" ]; the
 fi
 
 # Stripe webhook secret (deterministic default for e2e testing)
-# Can be overridden by STRIPE_WEBHOOK_SECRET environment variable
+# Priority: dot file (from actual registration) > environment variable > default
 DEFAULT_WEBHOOK_SECRET="whsec_test_webhook_secret_for_e2e_testing"
-if [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
+if [ -f .stripe-webhook-secret ]; then
+    SAVED_SECRET=$(cat .stripe-webhook-secret)
+fi
+if [ -n "${SAVED_SECRET:-}" ]; then
+    echo "Restoring Stripe webhook secret from .stripe-webhook-secret"
+    export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$SAVED_SECRET"
+elif [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
     echo "Setting Stripe webhook secret from environment"
     export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "${STRIPE_WEBHOOK_SECRET}"
 elif [ -z "${PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET:-}" ]; then

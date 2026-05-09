@@ -36,7 +36,13 @@ func (s *AtlosManualControlSteps) theAtlosSubscriptionIsRenewed(ctx context.Cont
 	}
 
 	orderID, _ := helpers.ParseAtlosOrderID(subscriptionID)
-	amount := helpers.ResolveAtlosCheckoutAmount(ctx, orderID.Raw)
+
+	var amount float64
+	if storedAmount, ok := helpers.GetGatewayCheckoutAmount(ctx); ok && storedAmount > 0 {
+		amount = storedAmount
+	} else {
+		amount = helpers.ResolveAtlosCheckoutAmount(ctx, orderID.Raw)
+	}
 
 	_, err = helpers.SimulateAtlosCheckout(ctx, orderID.Raw, amount, "USD")
 	if err != nil {

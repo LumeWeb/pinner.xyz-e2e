@@ -391,8 +391,11 @@ func checkSubscriptionStatus(status *account.SubscriptionStatus, expected string
 			return fmt.Errorf("expected subscription status 'canceled', got active")
 		}
 	case "paused":
-		if !status.IsSubscribed {
-			return fmt.Errorf("expected subscription status 'paused', got inactive")
+		if status.PausedAt == nil {
+			if status.IsSubscribed {
+				return fmt.Errorf("expected subscription status 'paused', got active")
+			}
+			return fmt.Errorf("expected subscription status 'paused', got inactive (paused_at is nil)")
 		}
 	default:
 		return fmt.Errorf("unknown subscription status: %s", expected)
@@ -507,6 +510,12 @@ func CleanupBillingInfrastructureImpl(ctx context.Context, infra *BillingInfrast
 // PollSubscriptionStatus polls portal API for user's subscription status
 // active should be true for subscribed, false for unsubscribed
 func PollSubscriptionStatus(ctx context.Context, userID int, active bool, timeout time.Duration) error {
+	return PollSubscriptionStatusDetailed(ctx, userID, active, false, timeout)
+}
+
+// PollSubscriptionStatusDetailed polls for subscription status with optional pause verification.
+// When checkPaused is true, requires PausedAt to be set (distinguishes paused from canceled).
+func PollSubscriptionStatusDetailed(ctx context.Context, userID int, active bool, checkPaused bool, timeout time.Duration) error {
 	adminClient, err := RequireAdminClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get admin client: %w", err)
@@ -531,15 +540,17 @@ func PollSubscriptionStatus(ctx context.Context, userID int, active bool, timeou
 	for {
 		select {
 		case <-ticker.C:
-			// Fetch latest subscription status
 			latestSubscribers, _, err := adminClient.Billing().GetUserSubscribers(ctx, fmt.Sprint(userID))
 			if err != nil {
 				continue
 			}
 
 			if len(latestSubscribers) > 0 {
-				// Check if active state matches
-				if latestSubscribers[0].IsActive == active {
+				sub := latestSubscribers[0]
+				if sub.IsActive == active {
+					if checkPaused && sub.PausedAt == nil {
+						continue
+					}
 					return nil
 				}
 			}

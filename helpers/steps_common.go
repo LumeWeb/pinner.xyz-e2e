@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -526,13 +527,14 @@ func isAPIKeyNotFoundError(err error) bool {
 	return strings.Contains(errStr, "status 404") && strings.Contains(errStr, "record not found")
 }
 
-// isAccountConflictError checks if the error is a 409 conflict error
-// which indicates an account deletion is already in progress
 func isAccountConflictError(err error) bool {
 	if err == nil {
 		return false
 	}
-	return strings.Contains(err.Error(), "status 409")
+	if errors.Is(err, account.ErrConflict) {
+		return true
+	}
+	return strings.Contains(err.Error(), "account delete conflict")
 }
 
 // DeleteAPIKeyGracefully attempts to delete an API key and ignores 404 errors

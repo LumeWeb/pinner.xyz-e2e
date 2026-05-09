@@ -81,6 +81,10 @@ fi
 log_ok "Webhook registered successfully"
 log_info "Webhook secret: ${SECRET}"
 
+# Persist webhook secret to dot file for restart durability
+# This file is cleaned up on stop/teardown/clean
+echo "${SECRET}" > .stripe-webhook-secret
+
 # Export webhook secret for use in .env
 export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "${SECRET}"
 

@@ -141,7 +141,7 @@ func (m *AtlosMock) Reset(ctx context.Context) error {
 }
 
 // CompleteCheckout simulates the Atlos widget checkout flow
-// For Atlos, the sessionID is the order ID (format "{userID}-period{periodID}" or opaque).
+// For Atlos, the sessionID is the order ID.
 // It extracts order/amount from the checkout UI fragments (authoritative source),
 // falling back to resolving the amount from the order ID via the admin API.
 func (m *AtlosMock) CompleteCheckout(ctx context.Context, sessionID string) (string, error) {
@@ -149,7 +149,7 @@ func (m *AtlosMock) CompleteCheckout(ctx context.Context, sessionID string) (str
 	var amount float64
 	var currency string
 
-	// Parse checkout data from the stored GetCheckoutUI response fragments
+	// Primary: parse checkout data from the stored GetCheckoutUI response fragments
 	if checkoutUI, ok := GetGatewayCheckoutUI(ctx); ok {
 		if data, err := ParseAtlosCheckoutFromFragments(checkoutUI.Fragments); err == nil && data.OrderID != "" {
 			orderID = data.OrderID
@@ -158,12 +158,20 @@ func (m *AtlosMock) CompleteCheckout(ctx context.Context, sessionID string) (str
 		}
 	}
 
-	// Fallback: parse session ID and resolve amount from admin API
+	// Fallback: try stored checkout amount from context, then resolve from order ID
 	if orderID == "" {
 		parsed, _ := ParseAtlosOrderID(sessionID)
 		orderID = parsed.Raw
-		amount = ResolveAtlosCheckoutAmount(ctx, orderID)
-		currency = "USD"
+		if storedAmount, ok := GetGatewayCheckoutAmount(ctx); ok && storedAmount > 0 {
+			amount = storedAmount
+		} else {
+			amount = ResolveAtlosCheckoutAmount(ctx, orderID)
+		}
+		if storedCurrency, ok := GetGatewayCheckoutCurrency(ctx); ok && storedCurrency != "" {
+			currency = storedCurrency
+		} else {
+			currency = "USD"
+		}
 	}
 
 	// Simulate the full checkout flow with a test payment
@@ -180,12 +188,11 @@ func (m *AtlosMock) CompleteCheckout(ctx context.Context, sessionID string) (str
 // GetCheckoutSession retrieves Atlos checkout session details
 // For Atlos, this retrieves the payment status
 func (m *AtlosMock) GetCheckoutSession(ctx context.Context, sessionID string) (*CheckoutSession, error) {
-	orderID, _ := ParseAtlosOrderID(sessionID)
+	parsed, _ := ParseAtlosOrderID(sessionID)
 
-	// For Atlos, we return the order as the session
 	return &CheckoutSession{
-		ID:             orderID.Raw,
-		SubscriptionID: orderID.Raw,
+		ID:             parsed.Raw,
+		SubscriptionID: parsed.Raw,
 		Status:         "complete",
 		PaymentStatus:  "paid",
 	}, nil
@@ -196,7 +203,12 @@ func (m *AtlosMock) GetCheckoutSession(ctx context.Context, sessionID string) (*
 func (m *AtlosMock) SimulatePayment(ctx context.Context, subscriptionID string) error {
 	orderID, _ := ParseAtlosOrderID(subscriptionID)
 
-	amount := ResolveAtlosCheckoutAmount(ctx, orderID.Raw)
+	var amount float64
+	if storedAmount, ok := GetGatewayCheckoutAmount(ctx); ok && storedAmount > 0 {
+		amount = storedAmount
+	} else {
+		amount = ResolveAtlosCheckoutAmount(ctx, orderID.Raw)
+	}
 
 	_, err := SimulateAtlosCheckout(ctx, orderID.Raw, amount, "USD")
 	return err
