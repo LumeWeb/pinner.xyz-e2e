@@ -168,10 +168,10 @@ fi
 DEFAULT_WEBHOOK_SECRET="whsec_test_webhook_secret_for_e2e_testing"
 if [ -f .stripe-webhook-secret ]; then
     SAVED_SECRET=$(cat .stripe-webhook-secret)
-    if [ -n "$SAVED_SECRET" ]; then
-        echo "Restoring Stripe webhook secret from .stripe-webhook-secret"
-        export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$SAVED_SECRET"
-    fi
+fi
+if [ -n "${SAVED_SECRET:-}" ]; then
+    echo "Restoring Stripe webhook secret from .stripe-webhook-secret"
+    export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$SAVED_SECRET"
 elif [ -n "${STRIPE_WEBHOOK_SECRET:-}" ]; then
     echo "Setting Stripe webhook secret from environment"
     export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "${STRIPE_WEBHOOK_SECRET}"

@@ -57,13 +57,14 @@ if is_process_running "$STRIPE_MOCK_PID"; then
 
   # If we have a saved webhook secret, ensure it's in .env
   # (avoid re-registering which creates a new secret and invalidates the old one)
+  SAVED_SECRET=""
   if [ -f .stripe-webhook-secret ]; then
     SAVED_SECRET=$(cat .stripe-webhook-secret)
-    if [ -n "$SAVED_SECRET" ]; then
-      log_info "Restoring webhook secret from .stripe-webhook-secret"
-      export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$SAVED_SECRET"
-      log_ok "Webhook secret restored"
-    fi
+  fi
+  if [ -n "$SAVED_SECRET" ]; then
+    log_info "Restoring webhook secret from .stripe-webhook-secret"
+    export_env .env PORTAL__PLUGIN__BILLING__SERVICE__BILLING__STRIPE__WEBHOOK_SECRET "$SAVED_SECRET"
+    log_ok "Webhook secret restored"
   else
     # No saved secret — register webhook endpoint (idempotent but creates new secret)
     log_info "Registering webhook endpoint..."
