@@ -510,6 +510,12 @@ func CleanupBillingInfrastructureImpl(ctx context.Context, infra *BillingInfrast
 // PollSubscriptionStatus polls portal API for user's subscription status
 // active should be true for subscribed, false for unsubscribed
 func PollSubscriptionStatus(ctx context.Context, userID int, active bool, timeout time.Duration) error {
+	return PollSubscriptionStatusDetailed(ctx, userID, active, false, timeout)
+}
+
+// PollSubscriptionStatusDetailed polls for subscription status with optional pause verification.
+// When checkPaused is true, requires PausedAt to be set (distinguishes paused from canceled).
+func PollSubscriptionStatusDetailed(ctx context.Context, userID int, active bool, checkPaused bool, timeout time.Duration) error {
 	adminClient, err := RequireAdminClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get admin client: %w", err)
@@ -524,10 +530,6 @@ func PollSubscriptionStatus(ctx context.Context, userID int, active bool, timeou
 	if len(subscribers) == 0 {
 		return fmt.Errorf("no subscriber found for user %d", userID)
 	}
-
-	// When checking for inactive (paused/canceled), also verify PausedAt is set
-	// to distinguish paused from canceled.
-	checkPaused := !active
 
 	// Poll for expected status
 	ticker := time.NewTicker(500 * time.Millisecond)
