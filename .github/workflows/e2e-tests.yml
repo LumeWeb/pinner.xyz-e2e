@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+    inputs:
+      features_csv:
+        description: 'Comma-separated feature files to run (without .feature extension). Overrides auto-discovery.'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -52,7 +58,15 @@ jobs:
     - name: Build feature matrix
       id: set-matrix
       run: |
-        FEATURES=$(ls features/*.feature 2>/dev/null | xargs -I{} basename {} .feature | sort)
+        FEATURES_CSV="${{ inputs.features_csv }}"
+
+        if [ -n "$FEATURES_CSV" ]; then
+          echo "Using manual feature selection: $FEATURES_CSV"
+          FEATURES=$(echo "$FEATURES_CSV" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$')
+        else
+          FEATURES=$(ls features/*.feature 2>/dev/null | xargs -I{} basename {} .feature | sort)
+        fi
+
         if [ -z "$FEATURES" ]; then
           echo "No feature files found" >&2
           echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
