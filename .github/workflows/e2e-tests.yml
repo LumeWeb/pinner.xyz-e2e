@@ -20,19 +20,19 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
-    
+
     - name: Create Plugin Manifest
       run: |
         chmod +x ./scripts/create-plugin-manifest.sh
         ./scripts/create-plugin-manifest.sh
-    
+
     - name: Build Portal
       uses: addnab/docker-run-action@v3
       with:
         image: ghcr.io/lumeweb/portal-builder:ubuntu
         options: -v ${{ github.workspace }}:/workspace -v ${{ github.workspace }}/dist:/dist
         run: build-portal
-    
+
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -40,166 +40,45 @@ jobs:
         path: dist/portal
         retention-days: 1
 
-  run:
-    name: Run Portal (MySQL)
-    needs: build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    services:
-      mysql:
-        image: percona/percona-server:8.4
-        env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: portal
-          MYSQL_USER: portal
-          MYSQL_PASSWORD: portal
-        ports:
-          - 3306:3306
-        options: >-
-          --name mysql
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-      
-      maildev:
-        image: maildev/maildev:latest
-        ports:
-          - 1025:1025
-          - 1080:1080
-        options: >-
-          --name maildev
-          --health-cmd="wget --spider -q http://localhost:1080"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-      
-      gofakes3:
-        image: ghcr.io/lumeweb/gofakes3:latest
-        ports:
-          - 9000:9000
-        env:
-          GOF3_BACKEND: mem
-          GOF3_INITIAL_BUCKET: fakebucket
-          GOF3_NO_INTEGRITY: "true"
-          GOF3_QUIET: "true"
-        options: >-
-          --name gofakes3
-      
-      
-      powerdns:
-        image: powerdns/pdns-auth-51:latest
-        ports:
-          - 8081:8081
-        env:
-          PDNS_AUTH_API_KEY: secret-api-key-for-testing
-          PDNS_AUTH_WEBSERVER_ADDRESS: "0.0.0.0"
-          PDNS_AUTH_WEBSERVER_PORT: "8081"
-          PDNS_AUTH_WEBSERVER_ALLOW_FROM: "0.0.0.0/0"
-          PDNS_AUTH_LOGLEVEL: "notice"
-        options: >-
-          --name portal-powerdns
-    
+  discover-features:
+    name: Discover Feature Files
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
     - name: Checkout Repo
       uses: actions/checkout@v4
-      with:
-        submodules: true
-    
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
 
-    - name: Download Build Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: portal-build
-        path: dist/
-    
-    - name: Start IPFS in host mode
-      uses: ./.github/actions/start-ipfs
-    
-    - name: Wait for Services
+    - name: Build feature matrix
+      id: set-matrix
       run: |
-        sleep 5
-        
-        chmod +x ./scripts/wait-gofakes3.sh
-        ./scripts/wait-gofakes3.sh || echo "gofakes3 wait timeout, but may still be starting..."
-        
-        chmod +x ./scripts/wait-ipfs.sh
-        ./scripts/wait-ipfs.sh
-        
-        chmod +x ./scripts/wait-powerdns.sh
-        ./scripts/wait-powerdns.sh
-    
-    - name: Setup Environment
-      uses: ./.github/actions/setup-env
-      with:
-        renterd_url: ${{ secrets.RENTERD_URL }}
-        renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
-        indexd_admin_url: ${{ secrets.INDEXD_ADMIN_URL }}
-        indexd_admin_key: ${{ secrets.INDEXD_ADMIN_KEY }}
-        indexd_app_url: ${{ secrets.INDEXD_APP_URL }}
-      env:
-        IPFS_API_ENDPOINT: http://localhost:5001
-    
-    - name: Start Portal
-      uses: ./.github/actions/start-portal
-      id: portal
-      with:
-        renterd_url: ${{ secrets.RENTERD_URL }}
-        renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
-        indexd_admin_url: ${{ secrets.INDEXD_ADMIN_URL }}
-        indexd_admin_key: ${{ secrets.INDEXD_ADMIN_KEY }}
-        indexd_app_url: ${{ secrets.INDEXD_APP_URL }}
-    
-    - name: Run E2E Tests
-      id: run-e2e-tests
-      run: |
-        chmod +x ./scripts/run-tests.sh
-        ./scripts/run-tests.sh
-    
-    - name: Run IPFS Compliance Tests
-      id: run-compliance-tests
-      run: |
-        chmod +x ./scripts/setup-compliance.sh
-        chmod +x ./scripts/run-compliance-tests.sh
-        ./scripts/setup-compliance.sh
-        ./scripts/run-compliance-tests.sh
-    
-    - name: Run Sia E2E Tests
-      id: run-sia-tests
-      if: ${{ env.RENTERD_URL != '' && env.INDEXD_ADMIN_URL != '' }}
-      env:
-        RENTERD_URL: ${{ secrets.RENTERD_URL }}
-        INDEXD_ADMIN_URL: ${{ secrets.INDEXD_ADMIN_URL }}
-      run: |
-        chmod +x ./scripts/run-tests.sh
-        ./scripts/run-tests.sh --godog.tags="@sia"
-    
-    - name: Portal Logs
-      if: always()
-      run: |
-        if [ -f ${{ steps.portal.outputs.log_file }} ]; then
-          echo "=== Portal Logs ==="
-          cat ${{ steps.portal.outputs.log_file }} || true
+        FEATURES=$(ls features/*.feature 2>/dev/null | xargs -I{} basename {} .feature | sort)
+        if [ -z "$FEATURES" ]; then
+          echo "No feature files found" >&2
+          echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+          exit 1
         fi
-    
-    - name: Keep job alive for debugging
-      if: always() && runner.debug == '1'
-      run: |
-        # Sleep for CI debugging when tests are not fully successful
-        # Only exit immediately when all tests pass
-        SIA_OUTCOME="${{ steps.run-sia-tests.outcome }}"
-        # Treat skipped Sia tests as success (INDEXD secrets not configured)
-        if [ "$SIA_OUTCOME" = "skipped" ]; then
-          SIA_OUTCOME="success"
-        fi
-        if ! { [ "${{ steps.run-e2e-tests.outcome }}" == "success" ] && \
-               [ "${{ steps.run-compliance-tests.outcome }}" == "success" ] && \
-               [ "$SIA_OUTCOME" == "success" ]; } then
-          echo "Tests not fully successful (failed: e2e=${{ steps.run-e2e-tests.outcome }}, compliance=${{ steps.run-compliance-tests.outcome }}, sia=$SIA_OUTCOME), sleeping for debugging..."
-          sleep 1800
-        else
-          echo "All tests passed successfully, not sleeping"
-        fi
+
+        MATRIX=$(echo "$FEATURES" | jq -R -s '{"include": [split("\n") | .[] | select(length > 0) | {"feature": .}]}')
+        echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+        echo "Discovered features:"
+        echo "${MATRIX}" | jq .
+
+  test:
+    name: "Test: ${{ matrix.feature }}"
+    needs: [build, discover-features]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-features.outputs.matrix) }}
+    uses: ./.github/workflows/run-e2e-shard.yml
+    with:
+      feature: ${{ matrix.feature }}
+    secrets: inherit
+
+  compliance:
+    name: IPFS Compliance Tests
+    needs: [build, test]
+    uses: ./.github/workflows/run-e2e-shard.yml
+    with:
+      feature: ''
+    secrets: inherit
