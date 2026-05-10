@@ -78,6 +78,7 @@ jobs:
   compliance:
     name: IPFS Compliance Tests
     needs: [build, test]
+    if: always()
     uses: ./.github/workflows/run-e2e-shard.yml
     with:
       feature: ''
