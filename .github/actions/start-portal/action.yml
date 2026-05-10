@@ -12,6 +12,18 @@ inputs:
   renterd_api_password:
     description: 'Renterd API authentication password'
     required: true
+  indexd_admin_url:
+    description: 'Indexd admin API URL'
+    required: false
+    default: ''
+  indexd_admin_key:
+    description: 'Indexd admin API key'
+    required: false
+    default: ''
+  indexd_app_url:
+    description: 'Indexd app API URL'
+    required: false
+    default: ''
 
 outputs:
   log_file:
@@ -27,6 +39,9 @@ runs:
         VERBOSE: ${{ runner.debug == '1' && '1' || '0' }}
         RENTERD_URL: ${{ inputs.renterd_url }}
         RENTERD_API_PASSWORD: ${{ inputs.renterd_api_password }}
+        INDEXD_ADMIN_URL: ${{ inputs.indexd_admin_url }}
+        INDEXD_ADMIN_KEY: ${{ inputs.indexd_admin_key }}
+        INDEXD_APP_URL: ${{ inputs.indexd_app_url }}
       run: |
         # Ensure portal is in the expected location
         if [ ! -f "./portal" ] && [ -f "./dist/portal" ]; then

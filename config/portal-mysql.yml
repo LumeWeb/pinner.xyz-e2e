@@ -39,6 +39,11 @@ core.storage.s3:
     access_key: "FAKEACCESSKEY"
     secret_key: "FAKESECRETKEY"
 
+plugin.sia.protocol:
+    url: ""
+    key: ""
+    app_url: ""
+
 # IPFS P2P configuration - use port 4002 to avoid conflict with Kubo's port 4001
 plugin.ipfs.api:
     gateway_secret: secret

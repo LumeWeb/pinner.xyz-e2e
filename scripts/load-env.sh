@@ -50,3 +50,7 @@ fi
 if [ -z "${TEST_INVALID_TOKEN:-}" ]; then
   export TEST_INVALID_TOKEN="invalid-token-12345678901234567890"
 fi
+
+export INDEXD_ADMIN_URL="${INDEXD_ADMIN_URL:-}"
+export INDEXD_ADMIN_KEY="${INDEXD_ADMIN_KEY:-}"
+export INDEXD_APP_URL="${INDEXD_APP_URL:-}"

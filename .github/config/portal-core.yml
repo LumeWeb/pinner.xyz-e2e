@@ -38,3 +38,8 @@ core.storage.s3:
   region: "us-east-1"
   access_key: "FAKEACCESSKEY"
   secret_key: "FAKESECRETKEY"
+
+plugin.sia.protocol:
+  url: ""
+  key: ""
+  app_url: ""

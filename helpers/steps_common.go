@@ -357,6 +357,16 @@ func GetIPFSEndpoint() string {
 	return buildEndpoint("ipfs", true)
 }
 
+// GetSiaHost returns the vhost hostname for the Sia API (for Host header)
+func GetSiaHost() string {
+	return buildHost("sia")
+}
+
+// GetSiaEndpoint returns the full endpoint URL for the Sia API
+func GetSiaEndpoint() string {
+	return buildEndpoint("sia", true)
+}
+
 // GetPortalServer returns the server hostname for SDK endpoint configuration
 func GetPortalServer() string {
 	return buildEndpoint("account", false)
@@ -515,6 +525,39 @@ func RegisterAndLoginTestUser(ctx context.Context) (context.Context, error) {
 	}
 
 	return LoginTestUser(ctx)
+}
+
+// VerifyTestUserEmail completes the email verification flow for the current test user.
+// It sends a verification email, waits for it, extracts the token, and verifies the email.
+func VerifyTestUserEmail(ctx context.Context) (context.Context, error) {
+	testUser, err := RequireTestUser(ctx)
+	if err != nil {
+		return ctx, err
+	}
+
+	api := GetUnauthenticatedClient()
+	if err := api.ResendVerifyEmail(ctx, testUser.Email); err != nil {
+		return ctx, fmt.Errorf("failed to send verification email: %w", err)
+	}
+
+	maildev := NewMailDevClient("")
+	portalName := GetPortalName()
+	subject := fmt.Sprintf("Verify Your Email for %s", portalName)
+	email, err := maildev.WaitForEmail(testUser.Email, subject, 30*time.Second)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to receive verification email: %w", err)
+	}
+
+	token, err := maildev.ExtractTokenFromEmail(email, DefaultTokenPattern)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to extract token from verification email: %w", err)
+	}
+
+	if err := api.VerifyEmail(ctx, testUser.Email, token); err != nil {
+		return ctx, fmt.Errorf("failed to verify email: %w", err)
+	}
+
+	return ctx, nil
 }
 
 // isAPIKeyNotFoundError checks if the error is a 404 "record not found" error

@@ -33,6 +33,9 @@ PRESERVED_RENTERD_URL="${RENTERD_URL:-}"
 PRESERVED_RENTERD_API_PASSWORD="${RENTERD_API_PASSWORD:-}"
 PRESERVED_IPFS_API_ENDPOINT="${IPFS_API_ENDPOINT-}"
 PRESERVED_PORTAL_IPFS_PEER_ID="${PORTAL_IPFS_PEER_ID:-${DEFAULT_PORTAL_IPFS_PEER_ID}}"
+PRESERVED_INDEXD_ADMIN_URL="${INDEXD_ADMIN_URL:-}"
+PRESERVED_INDEXD_ADMIN_KEY="${INDEXD_ADMIN_KEY:-}"
+PRESERVED_INDEXD_APP_URL="${INDEXD_APP_URL:-}"
 
 # If not set in environment, try to load from .env file
 if [ -z "${PRESERVED_RENTERD_URL}" ] || [ -z "${PRESERVED_RENTERD_API_PASSWORD}" ] || [ -z "${PRESERVED_IPFS_API_ENDPOINT}" ]; then
@@ -50,6 +53,9 @@ if [ -z "${PRESERVED_RENTERD_URL}" ] || [ -z "${PRESERVED_RENTERD_API_PASSWORD}"
   PRESERVED_RENTERD_API_PASSWORD="${RENTERD_API_PASSWORD:-${PRESERVED_RENTERD_API_PASSWORD:-}}"
   PRESERVED_IPFS_API_ENDPOINT="${IPFS_API_ENDPOINT:-http://127.0.0.1:5001}"
   PRESERVED_PORTAL_IPFS_PEER_ID="${PORTAL_IPFS_PEER_ID:-${DEFAULT_PORTAL_IPFS_PEER_ID}}"
+  PRESERVED_INDEXD_ADMIN_URL="${INDEXD_ADMIN_URL:-${PRESERVED_INDEXD_ADMIN_URL:-}}"
+  PRESERVED_INDEXD_ADMIN_KEY="${INDEXD_ADMIN_KEY:-${PRESERVED_INDEXD_ADMIN_KEY:-}}"
+  PRESERVED_INDEXD_APP_URL="${INDEXD_APP_URL:-${PRESERVED_INDEXD_APP_URL:-}}"
 fi
 
 # Set default for IPFS_API_ENDPOINT if still not set
@@ -86,11 +92,15 @@ declare -A RENTERD_VARS=(
   ["RENTERD_API_PASSWORD"]="PORTAL__CORE__STORAGE__SIA__KEY"
 )
 
-# Loop through and set each env var
+declare -A INDEXD_VARS=(
+  ["INDEXD_ADMIN_URL"]="PORTAL__PLUGIN__SIA__PROTOCOL__URL"
+  ["INDEXD_ADMIN_KEY"]="PORTAL__PLUGIN__SIA__PROTOCOL__KEY"
+  ["INDEXD_APP_URL"]="PORTAL__PLUGIN__SIA__PROTOCOL__APP_URL"
+)
+
 for env_var in "${!RENTERD_VARS[@]}"; do
   portal_var="${RENTERD_VARS[$env_var]}"
-  
-  # Get value from preserved renterd variables
+
   case "$env_var" in
     RENTERD_URL)
       value="${PRESERVED_RENTERD_URL:-}"
@@ -102,9 +112,33 @@ for env_var in "${!RENTERD_VARS[@]}"; do
       value=""
       ;;
   esac
-  
+
   if [ -n "$value" ]; then
-    # Use export_env helper
+    export_env .env "$portal_var" "$value"
+  else
+    echo "# ${env_var} not set, using empty value" >&2
+  fi
+done
+
+for env_var in "${!INDEXD_VARS[@]}"; do
+  portal_var="${INDEXD_VARS[$env_var]}"
+
+  case "$env_var" in
+    INDEXD_ADMIN_URL)
+      value="${PRESERVED_INDEXD_ADMIN_URL:-}"
+      ;;
+    INDEXD_ADMIN_KEY)
+      value="${PRESERVED_INDEXD_ADMIN_KEY:-}"
+      ;;
+    INDEXD_APP_URL)
+      value="${PRESERVED_INDEXD_APP_URL:-}"
+      ;;
+    *)
+      value=""
+      ;;
+  esac
+
+  if [ -n "$value" ]; then
     export_env .env "$portal_var" "$value"
   else
     echo "# ${env_var} not set, using empty value" >&2
@@ -185,11 +219,13 @@ fi
 QUIET=1 . scripts/load-env.sh
 
 # Export IPFS_API_ENDPOINT environment variable (not a PORTAL__ variable)
-# This is used by the IPFS API test helpers
 export_env .env IPFS_API_ENDPOINT "${PRESERVED_IPFS_API_ENDPOINT}"
 
-# Export PORTAL_IPFS_PEER_ID environment variable for kubo bootstrap setup
 export_env .env PORTAL_IPFS_PEER_ID "${PRESERVED_PORTAL_IPFS_PEER_ID}"
+
+export_env .env INDEXD_ADMIN_URL "${PRESERVED_INDEXD_ADMIN_URL}"
+export_env .env INDEXD_ADMIN_KEY "${PRESERVED_INDEXD_ADMIN_KEY}"
+export_env .env INDEXD_APP_URL "${PRESERVED_INDEXD_APP_URL}"
 
 # This makes them available to all subsequent steps without needing to source .env
 if [ "$WORKFLOW_MODE" = "true" ]; then
@@ -206,6 +242,9 @@ if [ "$WORKFLOW_MODE" = "true" ]; then
         echo "PORTAL_IPFS_PEER_ID=${PRESERVED_PORTAL_IPFS_PEER_ID}"
         echo "STRIPE_MOCK_PORT=${STRIPE_MOCK_PORT}"
         echo "STRIPE_MOCK_URL=${STRIPE_MOCK_URL}"
+        echo "INDEXD_ADMIN_URL=${PRESERVED_INDEXD_ADMIN_URL}"
+        echo "INDEXD_ADMIN_KEY=${PRESERVED_INDEXD_ADMIN_KEY}"
+        echo "INDEXD_APP_URL=${PRESERVED_INDEXD_APP_URL}"
     } >> "$GITHUB_ENV"
   else
     echo "Warning: GITHUB_ENV not set, skipping export to GitHub Actions environment" >&2
