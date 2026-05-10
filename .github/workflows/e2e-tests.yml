@@ -59,7 +59,7 @@ jobs:
           exit 1
         fi
 
-        MATRIX=$(echo "$FEATURES" | jq -R -s '{"include": [split("\n") | .[] | select(length > 0) | {"feature": .}]}')
+        MATRIX=$(echo "$FEATURES" | jq -R -s -c '{"include": [split("\n") | .[] | select(length > 0) | {"feature": .}]}')
         echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
         echo "Discovered features:"
         echo "${MATRIX}" | jq .
