@@ -148,7 +148,7 @@ jobs:
       id: run-e2e-test
       run: |
         chmod +x ./scripts/run-tests.sh
-        ./scripts/run-tests.sh "features/${{ inputs.feature }}.feature"
+        ./scripts/run-tests.sh --godog.paths="features/${{ inputs.feature }}.feature"
 
     - name: Run IPFS Compliance Tests
       if: inputs.feature == ''
