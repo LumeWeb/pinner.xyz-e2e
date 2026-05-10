@@ -1,0 +1,178 @@
+name: Run E2E Shard
+
+on:
+  workflow_call:
+    inputs:
+      feature:
+        description: 'Feature file name (without path/extension). Empty runs compliance tests.'
+        required: false
+        type: string
+        default: ''
+      runner:
+        description: 'Runner label'
+        required: false
+        type: string
+        default: 'blacksmith-4vcpu-ubuntu-2404'
+    secrets:
+      RENTERD_URL:
+        required: false
+      RENTERD_API_PASSWORD:
+        required: false
+      INDEXD_ADMIN_URL:
+        required: false
+      INDEXD_ADMIN_KEY:
+        required: false
+      INDEXD_APP_URL:
+        required: false
+
+jobs:
+  shard:
+    name: "${{ inputs.feature != '' && format('Test: {0}', inputs.feature) || 'IPFS Compliance Tests' }}"
+    runs-on: ${{ inputs.runner }}
+    env:
+      RENTERD_URL: ${{ secrets.RENTERD_URL }}
+      INDEXD_ADMIN_URL: ${{ secrets.INDEXD_ADMIN_URL }}
+    services:
+      mysql:
+        image: percona/percona-server:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: portal
+          MYSQL_USER: portal
+          MYSQL_PASSWORD: portal
+        ports:
+          - 3306:3306
+        options: >-
+          --name mysql
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+      maildev:
+        image: maildev/maildev:latest
+        ports:
+          - 1025:1025
+          - 1080:1080
+        options: >-
+          --name maildev
+          --health-cmd="wget --spider -q http://localhost:1080"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+      gofakes3:
+        image: ghcr.io/lumeweb/gofakes3:latest
+        ports:
+          - 9000:9000
+        env:
+          GOF3_BACKEND: mem
+          GOF3_INITIAL_BUCKET: fakebucket
+          GOF3_NO_INTEGRITY: "true"
+          GOF3_QUIET: "true"
+        options: >-
+          --name gofakes3
+
+      powerdns:
+        image: powerdns/pdns-auth-51:latest
+        ports:
+          - 8081:8081
+        env:
+          PDNS_AUTH_API_KEY: secret-api-key-for-testing
+          PDNS_AUTH_WEBSERVER_ADDRESS: "0.0.0.0"
+          PDNS_AUTH_WEBSERVER_PORT: "8081"
+          PDNS_AUTH_WEBSERVER_ALLOW_FROM: "0.0.0.0/0"
+          PDNS_AUTH_LOGLEVEL: "notice"
+        options: >-
+          --name portal-powerdns
+
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: portal-build
+        path: dist/
+
+    - name: Start IPFS in host mode
+      uses: ./.github/actions/start-ipfs
+
+    - name: Wait for Services
+      run: |
+        sleep 5
+
+        chmod +x ./scripts/wait-gofakes3.sh
+        ./scripts/wait-gofakes3.sh || echo "gofakes3 wait timeout, but may still be starting..."
+
+        chmod +x ./scripts/wait-ipfs.sh
+        ./scripts/wait-ipfs.sh
+
+        chmod +x ./scripts/wait-powerdns.sh
+        ./scripts/wait-powerdns.sh
+
+    - name: Setup Environment
+      uses: ./.github/actions/setup-env
+      with:
+        renterd_url: ${{ secrets.RENTERD_URL }}
+        renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
+        indexd_admin_url: ${{ secrets.INDEXD_ADMIN_URL }}
+        indexd_admin_key: ${{ secrets.INDEXD_ADMIN_KEY }}
+        indexd_app_url: ${{ secrets.INDEXD_APP_URL }}
+      env:
+        IPFS_API_ENDPOINT: http://localhost:5001
+
+    - name: Start Portal
+      uses: ./.github/actions/start-portal
+      id: portal
+      with:
+        renterd_url: ${{ secrets.RENTERD_URL }}
+        renterd_api_password: ${{ secrets.RENTERD_API_PASSWORD }}
+        indexd_admin_url: ${{ secrets.INDEXD_ADMIN_URL }}
+        indexd_admin_key: ${{ secrets.INDEXD_ADMIN_KEY }}
+        indexd_app_url: ${{ secrets.INDEXD_APP_URL }}
+
+    - name: Run E2E Test
+      if: |
+        inputs.feature != '' &&
+        (!startsWith(inputs.feature, 'sia_') ||
+        (env.RENTERD_URL != '' && env.INDEXD_ADMIN_URL != ''))
+      id: run-e2e-test
+      run: |
+        chmod +x ./scripts/run-tests.sh
+        ./scripts/run-tests.sh --godog.paths="features/${{ inputs.feature }}.feature"
+
+    - name: Run IPFS Compliance Tests
+      if: inputs.feature == ''
+      id: run-compliance-tests
+      run: |
+        chmod +x ./scripts/setup-compliance.sh
+        chmod +x ./scripts/run-compliance-tests.sh
+        ./scripts/setup-compliance.sh
+        ./scripts/run-compliance-tests.sh
+
+    - name: Portal Logs
+      if: always()
+      run: |
+        if [ -f ${{ steps.portal.outputs.log_file }} ]; then
+          echo "=== Portal Logs ==="
+          cat ${{ steps.portal.outputs.log_file }} || true
+        fi
+
+    - name: Keep job alive for debugging
+      if: always() && runner.debug == '1'
+      run: |
+        if [ "${{ steps.run-e2e-test.outcome }}" = "success" ] || [ "${{ steps.run-e2e-test.outcome }}" = "skipped" ] || [ "${{ steps.run-compliance-tests.outcome }}" = "success" ]; then
+          echo "Tests passed or skipped, not sleeping"
+        else
+          echo "Tests failed, sleeping for debugging..."
+          sleep 1800
+        fi
