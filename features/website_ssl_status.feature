@@ -6,7 +6,10 @@ Feature: Website SSL Status
   via Caddy webhook calls to the internal API with gateway secret authentication.
 
   Background:
-    Given the user has an authenticated API key
+    Given the admin is authenticated
+    And the admin creates a new quota plan named "Default Test Plan"
+    And the admin sets the plan as default
+    And the user has an authenticated API key
     And the user has an IPFS client connection
     And the DNS dev server is available
 
